@@ -111,6 +111,9 @@ export default function Home() {
           {carregando ? "Gerando..." : "Gerar Treino →"}
         </button>
         {erro && <p className={s.summary}>{erro}</p>}
+        <Link href="/aluno/jukebox" className={s.jukeLink}>
+          ♪ Pedir música na jukebox
+        </Link>
         <p className={s.summary}>
           {minutos} min · {atual.nome} · {qtdExercicios(minutos)} exercícios
         </p>

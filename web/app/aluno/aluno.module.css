@@ -201,3 +201,22 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+.jukeLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.jukeLink:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

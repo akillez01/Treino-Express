@@ -39,5 +39,11 @@ class Settings(BaseSettings):
     demo_aluno_id: str = "22222222-2222-2222-2222-222222222222"
     demo_anunciante_id: str = "55555555-5555-5555-5555-555555555555"
 
+    # Spotify Web API (app em developer.spotify.com/dashboard). Fluxo Client
+    # Credentials: só busca de faixas e metadados, sem login do aluno no Spotify.
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
+    spotify_market: str = "BR"
+
 
 settings = Settings()

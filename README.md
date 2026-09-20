@@ -10,7 +10,16 @@ Design e contratos de referência: `../treino-express-handoff/`.
 - Isolamento por tenant via Row Level Security
 - Rotas do app do aluno: `POST /v1/treinos/gerar`, `/v1/treinos/{id}/descanso`, `/v1/treinos/{id}/exercicio/{ordem}/concluir`
 
-Ainda não existem: gateway WebSocket, workers de anúncio, Stripe Connect, Spotify (jukebox), frontends.
+Ainda não existem: gateway WebSocket, workers de anúncio, Stripe Connect.
+
+## Spotify (jukebox)
+
+Busca e pedido de músicas pelo aluno (`/v1/jukebox/*`), fluxo Client Credentials.
+
+1. Em developer.spotify.com/dashboard, abra o app > Settings e copie Client ID e Client Secret.
+2. Coloque no `.env` (nunca no git): `SPOTIFY_CLIENT_ID=...` e `SPOTIFY_CLIENT_SECRET=...`.
+3. Confira: `PYTHONPATH=. uv run python scripts/testar_spotify.py`.
+4. Teste na tela: `/aluno/jukebox`.
 
 ## Setup local
 

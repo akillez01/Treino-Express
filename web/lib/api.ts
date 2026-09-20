@@ -49,7 +49,16 @@ export async function api<T>(perfil: Perfil, path: string, init: RequestInit = {
       delete tokens[perfil];
       continue;
     }
-    if (!res.ok) throw new ApiError(`Erro ${res.status} em ${path}`, res.status);
+    if (!res.ok) {
+      let detalhe = "";
+      try {
+        const corpo = (await res.json()) as { detail?: unknown };
+        if (typeof corpo.detail === "string") detalhe = corpo.detail;
+      } catch {
+        /* corpo não é JSON */
+      }
+      throw new ApiError(detalhe || `Erro ${res.status} em ${path}`, res.status);
+    }
     return res.json() as Promise<T>;
   }
   throw new ApiError("Sessão expirada");
@@ -270,3 +279,31 @@ export const alterarCampanha = (id: string, ativa: boolean) =>
     method: "PATCH",
     body: JSON.stringify({ ativa }),
   });
+
+// ---------------- Jukebox (Spotify) ----------------
+export type FaixaSpotify = {
+  id: string;
+  titulo: string;
+  artista: string;
+  duracao_segundos: number;
+  capa_url: string | null;
+  explicita: boolean;
+};
+export type ItemFila = {
+  id: string;
+  titulo: string;
+  artista: string;
+  duracao_segundos: number;
+  capa_url: string | null;
+  solicitante: string;
+};
+
+export const statusJukebox = () => api<{ spotify_configurado: boolean }>("aluno", "/v1/jukebox/status");
+export const buscarMusicas = (q: string) =>
+  api<{ faixas: FaixaSpotify[] }>("aluno", `/v1/jukebox/busca?q=${encodeURIComponent(q)}`);
+export const pedirMusica = (spotifyId: string) =>
+  api<{ pedido_id: string; titulo: string; artista: string; posicao: number }>("aluno", "/v1/jukebox/pedidos", {
+    method: "POST",
+    body: JSON.stringify({ spotify_id: spotifyId }),
+  });
+export const filaJukebox = () => api<{ fila: ItemFila[] }>("aluno", "/v1/jukebox/fila");
