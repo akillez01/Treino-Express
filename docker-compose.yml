@@ -1,0 +1,30 @@
+# Só o serviço `api`. Postgres e Redis são os mesmos containers do handoff
+# (infra/docker-compose.yml em treino-express-handoff/), subidos separadamente
+# com `docker compose up -d` naquela pasta. Este serviço se conecta a eles pela
+# rede externa `infra_default` que aquele compose já cria.
+#
+# Uso:
+#   (na pasta treino-express-handoff/infra) docker compose up -d
+#   (aqui)                                   docker compose up --build
+
+services:
+  api:
+    build: .
+    container_name: treino_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://treino:treino@postgres:5432/treino_express
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    networks:
+      - infra_default
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+
+networks:
+  infra_default:
+    external: true
