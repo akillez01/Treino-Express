@@ -1038,3 +1038,59 @@
 a.link {
   text-decoration: none;
 }
+
+.colLemb {
+  grid-template-columns: 28px minmax(170px, 2fr) minmax(90px, 0.8fr) minmax(110px, 1fr) minmax(140px, 1.2fr) 190px;
+  min-width: 820px;
+}
+
+.colHist {
+  grid-template-columns: minmax(110px, 0.8fr) minmax(140px, 1fr) minmax(220px, 3fr) 110px;
+  min-width: 640px;
+}
+
+.headActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btnPrimary {
+  height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.banner {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bannerOk {
+  background: rgba(197, 255, 61, 0.08);
+  border: 1px solid rgba(197, 255, 61, 0.28);
+}
+
+.bannerAviso {
+  background: rgba(255, 107, 44, 0.1);
+  border: 1px solid rgba(255, 107, 44, 0.3);
+}
+
+.bannerErro {
+  background: rgba(255, 107, 44, 0.14);
+  border: 1px solid rgba(255, 107, 44, 0.45);
+  color: #ffb9a0;
+}

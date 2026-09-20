@@ -392,6 +392,18 @@ export type Progresso = {
   evolucao_carga: { exercicio: string; pontos: { data: string; kg: number }[] }[];
   pontuacao: { total: number; nivel: string; consistencia: number; progressao: number; conclusao: number };
   conquistas: { id: string; titulo: string; descricao: string; conquistada: boolean }[];
+  metas: MetaExercicio[];
+  opcoes_meta: string[];
+};
+export type MetaExercicio = {
+  exercicio: string;
+  alvo_kg: number;
+  atual_kg: number;
+  pct: number;
+  atingida: boolean;
+  prazo: string | null;
+  dias_restantes: number | null;
+  previsao_dias: number | null;
 };
 export type ResumoTreino = {
   treino_id: string;
@@ -410,3 +422,53 @@ export const definirMeta = (meta: number) =>
 export const resumoTreino = (treinoId: string) => api<ResumoTreino>("aluno", `/v1/treinos/${treinoId}/resumo`);
 export const avaliarTreino = (treinoId: string, esforco: number) =>
   api<void>("aluno", `/v1/treinos/${treinoId}/avaliar`, { method: "POST", body: JSON.stringify({ esforco }) });
+
+
+// ---------------- Metas, preferências e ranking ----------------
+export const salvarMetaExercicio = (exercicio: string, alvo_kg: number, prazo: string | null) =>
+  api<{ ok: boolean }>("aluno", "/v1/progresso/metas", { method: "PUT", body: JSON.stringify({ exercicio, alvo_kg, prazo }) });
+export const removerMetaExercicio = (exercicio: string) =>
+  api<void>("aluno", `/v1/progresso/metas?exercicio=${encodeURIComponent(exercicio)}`, { method: "DELETE" });
+
+export type Preferencias = { ranking_visivel: boolean; lembretes_whatsapp: boolean; telefone: string | null };
+export const minhasPreferencias = () => api<Preferencias>("aluno", "/v1/aluno/preferencias");
+export const salvarPreferencias = (p: Partial<Preferencias>) =>
+  api<Preferencias>("aluno", "/v1/aluno/preferencias", { method: "PUT", body: JSON.stringify(p) });
+
+export type Metrica = "treinos" | "volume" | "sequencia";
+export type LinhaRanking = { posicao: number; nome: string; valor: number; treinos: number; melhor_sequencia: number; eu: boolean };
+export type RankingPayload = {
+  participando: boolean;
+  metrica: Metrica;
+  total: number;
+  itens: LinhaRanking[];
+  eu: LinhaRanking | null;
+};
+export const rankingAcademia = (metrica: Metrica, dias: number) =>
+  api<RankingPayload>("aluno", `/v1/ranking?metrica=${metrica}&dias=${dias}`);
+
+// ---------------- Lembretes (gestor) ----------------
+export type CandidatoLembrete = {
+  aluno_id: string;
+  nome: string;
+  dias_sem_treinar: number;
+  sequencia_perdida: number;
+  dias_ativos_30d: number;
+  telefone: string | null;
+  pode_enviar: boolean;
+  bloqueio: "sem_consentimento" | "sem_telefone" | "enviado_recentemente" | null;
+  mensagem: string;
+  wa_link: string | null;
+};
+export type LembretesPayload = {
+  whatsapp_configurado: boolean;
+  candidatos: CandidatoLembrete[];
+  historico: { id: string; nome: string; status: "enviado" | "simulado" | "falhou"; mensagem: string; erro: string | null; criado_em: string }[];
+};
+export const lembretesAcademia = () => api<LembretesPayload>("gestor", "/v1/academia/lembretes");
+export const enviarLembretes = (alunoIds: string[] | null) =>
+  api<{ resultados: { aluno_id: string; nome: string; status: string; erro: string | null }[]; simulado: boolean }>(
+    "gestor",
+    "/v1/academia/lembretes/enviar",
+    { method: "POST", body: JSON.stringify({ aluno_ids: alunoIds }) },
+  );

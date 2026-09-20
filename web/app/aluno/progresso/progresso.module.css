@@ -501,3 +501,150 @@
   line-height: 1.35;
   color: var(--ink-66);
 }
+
+.mini {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini:disabled {
+  opacity: 0.4;
+}
+
+.form {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form label,
+.tel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-66);
+}
+
+.form input,
+.form select,
+.tel input {
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  min-width: 0;
+}
+
+.form input:focus,
+.form select:focus,
+.tel input:focus {
+  outline: 2px solid var(--accent);
+}
+
+.formRow {
+  display: flex;
+  gap: 10px;
+}
+
+.formRow > label,
+.formRow > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.salvar {
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.erro {
+  margin: 0;
+  font-size: 12px;
+  color: #ffb9a0;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metaTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.metaFoot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ink-66);
+}
+
+.x {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 12px;
+  flex: none;
+}
+
+.fillOk {
+  background: #8fe500;
+}
+
+.opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.opt input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.opt span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.opt small {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-66);
+}
+
+.tel {
+  margin-top: 16px;
+}

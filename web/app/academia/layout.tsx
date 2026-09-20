@@ -10,6 +10,7 @@ const ABAS = [
   { href: "/academia/alunos", label: "Alunos" },
   { href: "/academia/financeiro", label: "Financeiro" },
   { href: "/academia/telas", label: "Telas" },
+  { href: "/academia/lembretes", label: "Lembretes" },
 ];
 
 function TelasOnline() {

@@ -8,6 +8,7 @@ import s from "./tabs.module.css";
 const ABAS = [
   { href: "/aluno", label: "Treino", icone: "▶", exact: true },
   { href: "/aluno/progresso", label: "Progresso", icone: "↗" },
+  { href: "/aluno/ranking", label: "Ranking", icone: "♛" },
   { href: "/aluno/jukebox", label: "Jukebox", icone: "♪" },
 ];
 

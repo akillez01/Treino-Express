@@ -6,6 +6,7 @@ import Carga from "@/app/_components/Estado";
 import { definirMeta, meuProgresso, useApi, type Progresso } from "@/lib/api";
 import { cx, dataCurta, fmt } from "@/lib/format";
 import AlunoTabs from "../_components/AlunoTabs";
+import { Metas, Preferencias } from "./metas";
 import s from "./progresso.module.css";
 
 const FOCOS: Record<string, string> = {
@@ -28,6 +29,7 @@ const ICONES: Record<string, string> = {
   volume_1t: "🏋",
   meta_semana: "🎯",
   novo_recorde: "🏆",
+  meta_exercicio: "🎯",
 };
 
 const horas = (min: number) => (min >= 60 ? `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, "0")}min` : `${min} min`);
@@ -218,6 +220,8 @@ function Conteudo({ p, recarregar }: { p: Progresso; recarregar: () => void }) {
         </section>
       )}
 
+      <Metas metas={p.metas} opcoes={p.opcoes_meta} recarregar={recarregar} />
+
       {p.recordes.length > 0 && (
         <section className={s.card}>
           <div className={s.cardTitle}>Recordes pessoais</div>
@@ -271,6 +275,8 @@ function Conteudo({ p, recarregar }: { p: Progresso; recarregar: () => void }) {
           ))}
         </div>
       </section>
+
+      <Preferencias />
     </>
   );
 }
