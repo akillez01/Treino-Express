@@ -16,6 +16,7 @@ class ExercicioOut(BaseModel):
     nome: str
     series: str
     carga: str | None = None
+    imagem_url: str | None = None
 
 
 class TreinoOut(BaseModel):

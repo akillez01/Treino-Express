@@ -101,7 +101,7 @@ export function useApi<T>(chave: string, buscar: () => Promise<T>): Estado<T> {
 }
 
 // ---------------- App do aluno ----------------
-export type Exercicio = { ordem: number; nome: string; series: string; carga: string | null };
+export type Exercicio = { ordem: number; nome: string; series: string; carga: string | null; imagem_url: string | null };
 export type Treino = {
   treino_id: string;
   minutos: number;
@@ -110,7 +110,17 @@ export type Treino = {
   descanso_segundos: number;
 };
 export type Concluido = { proximo_ordem: number | null; treino_concluido: boolean };
-export type Descanso = { descanso_segundos: number };
+export type Anuncio = {
+  campanha_id: string;
+  marca: string;
+  categoria: string | null;
+  desconto: string;
+  manchete: string;
+  corpo: string;
+  cupom: string;
+  qr_url: string;
+};
+export type Descanso = { descanso_segundos: number; campanha: Anuncio | null };
 
 export const gerarTreino = (minutos: number, foco: string) =>
   api<Treino>("aluno", "/v1/treinos/gerar", { method: "POST", body: JSON.stringify({ minutos, foco }) });

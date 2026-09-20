@@ -2,15 +2,15 @@
   min-height: 100dvh;
   display: flex;
   justify-content: center;
-  padding: 24px 22px 44px;
+  padding: 22px 22px 40px;
 }
 
 .wrap {
   width: 100%;
-  max-width: 560px;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .head {
@@ -19,8 +19,9 @@
   gap: 12px;
 }
 
-.head > div:nth-child(2) {
+.headTxt {
   flex: 1;
+  min-width: 0;
 }
 
 .back {
@@ -29,6 +30,7 @@
   border: 0;
   border-radius: 12px;
   background: var(--surface-2);
+  font-size: 18px;
 }
 
 .title {
@@ -70,12 +72,36 @@
   background: #22252a;
 }
 
-.card,
-.timer {
+.card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
-  padding: 20px;
+}
+
+.figure {
+  flex: none;
+  width: 104px;
+  height: 104px;
+  border-radius: 16px;
+  background: #f4f5f3;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  overflow: hidden;
+}
+
+.figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cardBody {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -86,8 +112,8 @@
 }
 
 .name {
-  margin: 8px 0 12px;
-  font-size: clamp(22px, 5vw, 28px);
+  margin: 6px 0 10px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.14;
@@ -105,7 +131,7 @@
   font-size: 13px;
   font-weight: 800;
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 5px 10px;
 }
 
 .carga {
@@ -113,20 +139,172 @@
   font-size: 13px;
   font-weight: 700;
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 5px 10px;
 }
 
 .timer {
+  display: grid;
+  place-items: center;
+  padding: 6px 0;
+}
+
+.ring {
+  position: relative;
+  width: 178px;
+  height: 178px;
+}
+
+.ring svg {
+  transform: rotate(-90deg);
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
 
+.estado {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-66);
+}
+
 .time {
-  margin-top: 8px;
   font-size: 46px;
   font-weight: 800;
   letter-spacing: -0.05em;
   font-variant-numeric: tabular-nums;
+}
+
+.voltar {
+  margin-top: 4px;
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.1;
   color: var(--accent);
+}
+
+.ad {
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(140deg, rgba(255, 107, 44, 0.16) 0%, rgba(255, 107, 44, 0.05) 55%, #15171a 100%);
+  border: 1px solid rgba(255, 107, 44, 0.28);
+}
+
+.adTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.adLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #ff9d6e;
+}
+
+.adDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff6b2c;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.adTag {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(244, 245, 243, 0.5);
+}
+
+.adMain {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.discount {
+  flex: none;
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  background: #ff6b2c;
+  color: #1a0d05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.discount b {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.discount small {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.adText {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.adFoot {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 107, 44, 0.2);
+  font-size: 12px;
+  color: rgba(244, 245, 243, 0.6);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ghost {
+  height: 54px;
+  border: 0;
+  border-radius: 17px;
+  background: var(--surface-2);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ghost:disabled {
+  opacity: 0.45;
+}
+
+.icon {
+  color: var(--accent);
+  font-size: 12px;
 }
 
 .erro {
@@ -144,4 +322,9 @@
   color: var(--accent-on);
   font-size: 17px;
   font-weight: 800;
+  box-shadow: 0 12px 28px var(--accent-glow);
+}
+
+.cta:disabled {
+  opacity: 0.6;
 }

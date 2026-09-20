@@ -61,7 +61,13 @@ async def gerar_treino(
         minutos=minutos,
         foco=foco,
         exercicios=[
-            ExercicioOut(ordem=te.ordem, nome=ex.nome, series=te.series, carga=te.carga)
+            ExercicioOut(
+                ordem=te.ordem,
+                nome=ex.nome,
+                series=te.series,
+                carga=te.carga,
+                imagem_url=ex.imagem_url,
+            )
             for te, ex in zip(treino_exercicios, exercicios_catalogo, strict=True)
         ],
         descanso_segundos=exercicios_catalogo[0].descanso_segundos or DESCANSO_PADRAO_SEGUNDOS,
