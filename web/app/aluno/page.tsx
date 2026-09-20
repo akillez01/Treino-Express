@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { gerarTreino, type Treino } from "@/lib/api";
+import AlunoTabs from "./_components/AlunoTabs";
 import Execucao from "./execucao";
 import s from "./aluno.module.css";
 
@@ -118,6 +119,7 @@ export default function Home() {
           {minutos} min · {atual.nome} · {qtdExercicios(minutos)} exercícios
         </p>
       </div>
+      <AlunoTabs />
     </main>
   );
 }

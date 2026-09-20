@@ -1,13 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { concluirExercicio, iniciarDescanso, type Anuncio, type Treino } from "@/lib/api";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  avaliarTreino,
+  concluirExercicio,
+  iniciarDescanso,
+  resumoTreino,
+  type Anuncio,
+  type Exercicio,
+  type ResumoTreino,
+  type Treino,
+} from "@/lib/api";
+import { fmt } from "@/lib/format";
+import AjusteSheet from "./ajuste";
 import s from "./execucao.module.css";
 
 const CIRC = 496.4; // 2 * PI * 79 (raio do anel do cronômetro)
 const mmss = (t: number) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+const ESFORCO = ["Muito leve", "Leve", "Moderado", "Intenso", "Exaustivo"];
 
 export default function Execucao({ treino, onSair }: { treino: Treino; onSair: () => void }) {
+  const [exs, setExs] = useState<Exercicio[]>(treino.exercicios);
   const [idx, setIdx] = useState(0);
   const [total, setTotal] = useState(treino.descanso_segundos);
   const [resto, setResto] = useState(treino.descanso_segundos);
@@ -15,23 +29,29 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
   const [anuncio, setAnuncio] = useState<Anuncio | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [ajustando, setAjustando] = useState(false);
+  const [final, setFinal] = useState(false);
 
-  const ex = treino.exercicios[idx];
-  const ultimo = idx === treino.exercicios.length - 1;
+  const ex = exs[Math.min(idx, exs.length - 1)];
+  const exRef = useRef(ex);
+  exRef.current = ex;
+  const ultimo = idx >= exs.length - 1;
 
   // O descanso corre desde que o exercício aparece (como no design). Ao entrar
   // em cada exercício avisamos a API: ela escolhe o anúncio e atualiza a TV.
   useEffect(() => {
+    if (final) return;
     let vivo = true;
+    const seg = exRef.current.descanso_segundos;
     setAnuncio(null);
-    setTotal(treino.descanso_segundos);
-    setResto(treino.descanso_segundos);
+    setTotal(seg);
+    setResto(seg);
     setRodando(true);
-    iniciarDescanso(treino.treino_id, ex.ordem)
+    iniciarDescanso(treino.treino_id, exRef.current.ordem)
       .then((d) => {
         if (!vivo) return;
         setAnuncio(d.campanha);
-        if (d.descanso_segundos !== treino.descanso_segundos) {
+        if (d.descanso_segundos !== seg) {
           setTotal(d.descanso_segundos);
           setResto(d.descanso_segundos);
         }
@@ -42,7 +62,7 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
     return () => {
       vivo = false;
     };
-  }, [treino.treino_id, treino.descanso_segundos, ex.ordem]);
+  }, [treino.treino_id, ex.ordem, final]);
 
   useEffect(() => {
     if (!rodando || resto <= 0) return;
@@ -60,14 +80,31 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
     setOcupado(true);
     try {
       const r = await concluirExercicio(treino.treino_id, ex.ordem);
-      if (r.treino_concluido) onSair();
+      if (r.treino_concluido) setFinal(true);
       else setIdx((i) => i + 1);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao falar com a API");
     } finally {
       setOcupado(false);
     }
-  }, [treino.treino_id, ex.ordem, onSair]);
+  }, [treino.treino_id, ex.ordem]);
+
+  function aplicarTreino(t: Treino, descansoMudou: boolean) {
+    const ordemAtual = ex.ordem;
+    setExs(t.exercicios);
+    const novoIdx = t.exercicios.findIndex((e) => e.ordem === ordemAtual);
+    // exercício removido: o próximo assume o lugar
+    const alvo = novoIdx >= 0 ? novoIdx : Math.min(idx, t.exercicios.length - 1);
+    setIdx(alvo);
+    const atual = t.exercicios[alvo];
+    if (descansoMudou && atual) {
+      setTotal(atual.descanso_segundos);
+      setResto(atual.descanso_segundos);
+      setRodando(true);
+    }
+  }
+
+  if (final) return <Resumo treino={treino} onSair={onSair} />;
 
   const terminou = resto === 0;
   const estado = terminou ? "Descanso concluído" : rodando ? "Descanso ativo" : "Pausado";
@@ -83,16 +120,16 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
           <div className={s.headTxt}>
             <div className={s.title}>Treino Express</div>
             <div className={s.sub}>
-              {treino.minutos} min · {treino.exercicios.length} exercícios
+              {treino.minutos} min · {exs.length} exercícios
             </div>
           </div>
           <div className={s.pos}>
-            {idx + 1} / {treino.exercicios.length}
+            {idx + 1} / {exs.length}
           </div>
         </header>
 
         <div className={s.bars} aria-hidden>
-          {treino.exercicios.map((e, i) => (
+          {exs.map((e, i) => (
             <span key={e.ordem} className={i < idx ? s.done : i === idx ? s.cur : s.todo} />
           ))}
         </div>
@@ -113,6 +150,9 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
               <span className={s.series}>{ex.series}</span>
               {ex.carga && <span className={s.carga}>{ex.carga}</span>}
             </div>
+            <button className={s.ajustar} onClick={() => setAjustando(true)}>
+              ⚙ Ajustar
+            </button>
           </div>
         </section>
 
@@ -198,6 +238,110 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
         </div>
         <button className={s.cta} disabled={ocupado} onClick={proximo}>
           {ocupado ? "Salvando..." : ultimo ? "Finalizar" : "Próximo exercício"}
+        </button>
+      </div>
+
+      {ajustando && (
+        <AjusteSheet
+          treinoId={treino.treino_id}
+          ex={ex}
+          podeRemover={exs.length > 1}
+          onTreino={aplicarTreino}
+          onFechar={() => setAjustando(false)}
+        />
+      )}
+    </main>
+  );
+}
+
+function Resumo({ treino, onSair }: { treino: Treino; onSair: () => void }) {
+  const [r, setR] = useState<ResumoTreino | null>(null);
+  const [esforco, setEsforco] = useState<number | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    resumoTreino(treino.treino_id)
+      .then((d) => {
+        setR(d);
+        setEsforco(d.esforco);
+      })
+      .catch(() => setErro("Não foi possível carregar o resumo."));
+  }, [treino.treino_id]);
+
+  async function avaliar(v: number) {
+    setEsforco(v);
+    try {
+      await avaliarTreino(treino.treino_id, v);
+    } catch {
+      setErro("Não foi possível salvar a avaliação.");
+    }
+  }
+
+  return (
+    <main className={s.page}>
+      <div className={s.wrap}>
+        <div className={s.fim}>
+          <div className={s.fimIcone} aria-hidden>
+            ✓
+          </div>
+          <h1 className={s.fimTitulo}>Treino concluído!</h1>
+          <p className={s.fimSub}>Bom trabalho. Veja como foi.</p>
+        </div>
+
+        {r && (
+          <>
+            <div className={s.stats}>
+              <div className={s.stat}>
+                <b>{r.duracao_min}</b>
+                <span>minutos</span>
+              </div>
+              <div className={s.stat}>
+                <b>
+                  {r.exercicios_concluidos}/{r.exercicios_total}
+                </b>
+                <span>exercícios</span>
+              </div>
+              <div className={s.stat}>
+                <b>{fmt(r.volume_kg)}</b>
+                <span>kg de volume</span>
+              </div>
+            </div>
+
+            {r.recordes.length > 0 && (
+              <section className={s.recs}>
+                <div className={s.recsTitulo}>🏆 Novos recordes</div>
+                {r.recordes.map((p) => (
+                  <div key={p.exercicio} className={s.rec}>
+                    <span>{p.exercicio}</span>
+                    <b>
+                      {p.kg.toString().replace(".", ",")} kg <small>(antes {p.anterior_kg.toString().replace(".", ",")})</small>
+                    </b>
+                  </div>
+                ))}
+              </section>
+            )}
+          </>
+        )}
+
+        <section className={s.esforco}>
+          <div className={s.recsTitulo}>Como foi o esforço?</div>
+          <div className={s.esforcoBtns}>
+            {ESFORCO.map((nome, i) => (
+              <button key={nome} className={esforco === i + 1 ? s.esforcoOn : s.esforcoBtn} onClick={() => avaliar(i + 1)}>
+                <b>{i + 1}</b>
+                <span>{nome}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {erro && <p className={s.erro}>{erro}</p>}
+
+        <Link href="/aluno/progresso" className={s.cta} style={{ display: "grid", placeItems: "center", textDecoration: "none" }}>
+          Ver meu progresso
+        </Link>
+        <button className={s.ghost} onClick={onSair}>
+          Novo treino
         </button>
       </div>
     </main>

@@ -59,6 +59,7 @@ export async function api<T>(perfil: Perfil, path: string, init: RequestInit = {
       }
       throw new ApiError(detalhe || `Erro ${res.status} em ${path}`, res.status);
     }
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
   }
   throw new ApiError("Sessão expirada");
@@ -101,7 +102,14 @@ export function useApi<T>(chave: string, buscar: () => Promise<T>): Estado<T> {
 }
 
 // ---------------- App do aluno ----------------
-export type Exercicio = { ordem: number; nome: string; series: string; carga: string | null; imagem_url: string | null };
+export type Exercicio = {
+  ordem: number;
+  nome: string;
+  series: string;
+  carga: string | null;
+  imagem_url: string | null;
+  descanso_segundos: number;
+};
 export type Treino = {
   treino_id: string;
   minutos: number;
@@ -342,3 +350,63 @@ export async function telaDemo(): Promise<TvAuth> {
 
 export const tvSocketUrl = (a: TvAuth) =>
   `${API_BASE.replace(/^http/, "ws")}/ws/tv/${a.academia_id}?token=${encodeURIComponent(a.token)}`;
+
+
+// ---------------- Ajustes do treino ----------------
+export type Ajuste = {
+  series?: string;
+  carga?: string;
+  descanso_segundos?: number;
+  aplicar_descanso_a_todos?: boolean;
+};
+export type Alternativa = {
+  exercicio_id: string;
+  nome: string;
+  series: string;
+  carga: string | null;
+  imagem_url: string | null;
+  descanso_segundos: number;
+};
+
+export const ajustarExercicio = (treinoId: string, ordem: number, ajuste: Ajuste) =>
+  api<Treino>("aluno", `/v1/treinos/${treinoId}/exercicio/${ordem}`, { method: "PATCH", body: JSON.stringify(ajuste) });
+export const alternativasExercicio = (treinoId: string, ordem: number) =>
+  api<Alternativa[]>("aluno", `/v1/treinos/${treinoId}/exercicio/${ordem}/alternativas`);
+export const trocarExercicio = (treinoId: string, ordem: number, exercicioId: string) =>
+  api<Treino>("aluno", `/v1/treinos/${treinoId}/exercicio/${ordem}/trocar`, {
+    method: "PUT",
+    body: JSON.stringify({ exercicio_id: exercicioId }),
+  });
+export const removerExercicio = (treinoId: string, ordem: number) =>
+  api<Treino>("aluno", `/v1/treinos/${treinoId}/exercicio/${ordem}`, { method: "DELETE" });
+
+// ---------------- Desempenho e evolução ----------------
+export type Progresso = {
+  meta_semanal: number;
+  semana: { treinos: number; meta: number };
+  sequencia: { atual: number; melhor: number };
+  totais: { treinos: number; minutos: number; exercicios: number; volume_kg: number };
+  semanas: { inicio: string; treinos: number; volume_kg: number }[];
+  por_foco: { foco: string; treinos: number }[];
+  recordes: { exercicio: string; kg: number; data: string; evolucao_kg: number; sessoes: number }[];
+  evolucao_carga: { exercicio: string; pontos: { data: string; kg: number }[] }[];
+  pontuacao: { total: number; nivel: string; consistencia: number; progressao: number; conclusao: number };
+  conquistas: { id: string; titulo: string; descricao: string; conquistada: boolean }[];
+};
+export type ResumoTreino = {
+  treino_id: string;
+  foco: string;
+  duracao_min: number;
+  exercicios_concluidos: number;
+  exercicios_total: number;
+  volume_kg: number;
+  recordes: { exercicio: string; kg: number; anterior_kg: number }[];
+  esforco: number | null;
+};
+
+export const meuProgresso = () => api<Progresso>("aluno", "/v1/progresso");
+export const definirMeta = (meta: number) =>
+  api<{ meta_semanal: number }>("aluno", "/v1/progresso/meta", { method: "PUT", body: JSON.stringify({ meta_semanal: meta }) });
+export const resumoTreino = (treinoId: string) => api<ResumoTreino>("aluno", `/v1/treinos/${treinoId}/resumo`);
+export const avaliarTreino = (treinoId: string, esforco: number) =>
+  api<void>("aluno", `/v1/treinos/${treinoId}/avaliar`, { method: "POST", body: JSON.stringify({ esforco }) });

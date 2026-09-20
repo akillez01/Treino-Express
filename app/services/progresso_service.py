@@ -165,8 +165,9 @@ async def progresso(db: AsyncSession, aluno_id: UUID, dias: int = 90) -> dict:
     for x in linhas:
         kg = _kg(x["carga"])
         if x["ex_concluido_em"] and kg:
-            historico[x["exercicio_id"]].append((_local(x["ex_concluido_em"]), kg))
-            nomes[x["exercicio_id"]] = x["nome"]
+            # o mesmo exercício pode existir em mais de um foco do catálogo: agrupa pelo nome
+            historico[x["nome"]].append((_local(x["ex_concluido_em"]), kg))
+            nomes[x["nome"]] = x["nome"]
     recordes, evolucao = [], []
     for ex_id, pts in historico.items():
         por_dia: dict[date, float] = {}

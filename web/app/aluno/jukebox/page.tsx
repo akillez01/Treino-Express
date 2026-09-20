@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import {
   buscarMusicas,
@@ -10,6 +9,7 @@ import {
   useApi,
   type FaixaSpotify,
 } from "@/lib/api";
+import AlunoTabs from "../_components/AlunoTabs";
 import s from "./jukebox.module.css";
 
 const mmss = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
@@ -57,9 +57,6 @@ export default function Jukebox() {
   return (
     <main className={s.page}>
       <div className={s.wrap}>
-        <Link href="/aluno" className={s.back}>
-          ← Treino
-        </Link>
         <h1 className={s.title}>Jukebox</h1>
         <p className={s.sub}>Peça a próxima música da TV da academia.</p>
 
@@ -129,6 +126,7 @@ export default function Jukebox() {
           ))}
         </ul>
       </div>
+      <AlunoTabs />
     </main>
   );
 }

@@ -328,3 +328,149 @@
 .cta:disabled {
   opacity: 0.6;
 }
+
+.ajustar {
+  margin-top: 10px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ajustar:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fim {
+  text-align: center;
+  padding-top: 12px;
+}
+
+.fimIcone {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: var(--accent-on);
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.fimTitulo {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.fimSub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--ink-66);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.stat {
+  padding: 16px 8px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.stat b {
+  display: block;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.stat span {
+  font-size: 11px;
+  color: var(--ink-66);
+}
+
+.recs,
+.esforco {
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.recs {
+  border-color: rgba(197, 255, 61, 0.3);
+  background: rgba(197, 255, 61, 0.05);
+}
+
+.recsTitulo {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.rec {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.rec small {
+  font-weight: 500;
+  color: var(--ink-66);
+}
+
+.esforcoBtns {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.esforcoBtn,
+.esforcoOn {
+  padding: 10px 2px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.esforcoBtn b,
+.esforcoOn b {
+  font-size: 18px;
+}
+
+.esforcoBtn span,
+.esforcoOn span {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ink-66);
+}
+
+.esforcoOn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.esforcoOn span {
+  color: rgba(13, 14, 16, 0.7);
+}
