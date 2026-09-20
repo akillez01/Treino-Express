@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   JUKEBOX_RECEITA,
@@ -116,6 +117,12 @@ export default function PainelAcademia() {
             ))}
           </nav>
           <div className={s.grow} />
+          <div className={s.switcher}>
+            <Link href="/">App</Link>
+            <Link href="/academia">Academia</Link>
+            <Link href="/anunciante">Anunciante</Link>
+            <Link href="/tv">TV</Link>
+          </div>
           <div className={s.live}>
             <span className={s.dotLive} />
             {online} DE {SCREENS.length} TELAS ONLINE

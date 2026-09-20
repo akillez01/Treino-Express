@@ -876,3 +876,25 @@
   color: rgba(244, 245, 243, 0.6);
   font-variant-numeric: tabular-nums;
 }
+
+.switcher {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.switcher a {
+  padding: 6px 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(244, 245, 243, 0.66);
+  text-decoration: none;
+}
+
+.switcher a:hover {
+  color: var(--accent);
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { brl, brlShort } from "@/lib/academia-data";
 import {
@@ -80,6 +81,12 @@ export default function PainelAnunciante() {
             ))}
           </nav>
           <div className={base.grow} />
+          <div className={base.switcher}>
+            <Link href="/">App</Link>
+            <Link href="/academia">Academia</Link>
+            <Link href="/anunciante">Anunciante</Link>
+            <Link href="/tv">TV</Link>
+          </div>
           <div className={x.account}>
             <span className={x.accountAv}>NP</span>Nutri Prime
           </div>

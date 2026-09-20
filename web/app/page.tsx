@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { gerarTreino, type Treino } from "@/lib/api";
 import Execucao from "./execucao";
 import s from "./page.module.css";
@@ -110,6 +111,13 @@ export default function Home() {
         <p className={s.summary}>
           {minutos} min · {atual.nome} · {qtdExercicios(minutos)} exercícios
         </p>
+
+        <nav className={s.panels} aria-label="Painéis">
+          <span className={s.panelsLabel}>PAINÉIS</span>
+          <Link href="/academia">Academia</Link>
+          <Link href="/anunciante">Anunciante</Link>
+          <Link href="/tv">TV</Link>
+        </nav>
       </div>
     </main>
   );
