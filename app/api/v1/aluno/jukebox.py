@@ -1,8 +1,9 @@
 """Jukebox do aluno: buscar músicas no Spotify e pedir para a TV da academia."""
 
 import time
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.services import jukebox_player, tv_events
 router = APIRouter(prefix="/jukebox", tags=["jukebox"])
 
 MAX_PEDIDOS_PENDENTES = 3
+SPOTIFY_ID_PATTERN = r"^[A-Za-z0-9]{22}$"
 
 
 def _erro_spotify(exc: Exception) -> HTTPException:
@@ -43,7 +45,7 @@ async def buscar(
 
 
 class PedidoIn(BaseModel):
-    spotify_id: str = Field(pattern=r"^[A-Za-z0-9]{22}$")
+    spotify_id: str = Field(pattern=SPOTIFY_ID_PATTERN)
 
 
 class PedidoOut(BaseModel):
@@ -51,6 +53,99 @@ class PedidoOut(BaseModel):
     titulo: str
     artista: str
     posicao: int
+
+
+class BibliotecaFaixaOut(BaseModel):
+    spotify_id: str
+    titulo: str
+    artista: str
+    duracao_segundos: int
+    capa_url: str | None
+    adicionada_em: datetime
+
+
+class BibliotecaFaixaIn(BaseModel):
+    spotify_id: str = Field(pattern=SPOTIFY_ID_PATTERN)
+
+
+@router.get("/biblioteca")
+async def listar_biblioteca(
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+):
+    resultado = await db.execute(
+        text(
+            """
+            SELECT spotify_id, titulo, artista, duracao_segundos, capa_url, adicionada_em
+            FROM aluno_biblioteca_faixas
+            WHERE aluno_id = CAST(:aluno AS uuid)
+            ORDER BY adicionada_em DESC
+            """
+        ),
+        {"aluno": str(aluno.aluno_id)},
+    )
+    return {"faixas": [BibliotecaFaixaOut(**dict(row)) for row in resultado.mappings().all()]}
+
+
+@router.post("/biblioteca", response_model=BibliotecaFaixaOut, status_code=status.HTTP_201_CREATED)
+async def salvar_na_biblioteca(
+    body: BibliotecaFaixaIn,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+):
+    try:
+        faixa = await spotify.obter_faixa(body.spotify_id)
+    except (spotify.SpotifyNaoConfigurado, spotify.SpotifyIndisponivel) as exc:
+        raise _erro_spotify(exc) from exc
+    if faixa is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Faixa não encontrada no Spotify")
+
+    resultado = await db.execute(
+        text(
+            """
+            INSERT INTO aluno_biblioteca_faixas
+                (aluno_id, spotify_id, titulo, artista, duracao_segundos, capa_url)
+            VALUES
+                (CAST(:aluno AS uuid), :spotify_id, :titulo, :artista, :duracao, :capa)
+            ON CONFLICT (aluno_id, spotify_id) DO UPDATE SET
+                titulo = EXCLUDED.titulo,
+                artista = EXCLUDED.artista,
+                duracao_segundos = EXCLUDED.duracao_segundos,
+                capa_url = EXCLUDED.capa_url,
+                adicionada_em = now()
+            RETURNING spotify_id, titulo, artista, duracao_segundos, capa_url, adicionada_em
+            """
+        ),
+        {
+            "aluno": str(aluno.aluno_id),
+            "spotify_id": faixa.id,
+            "titulo": faixa.titulo,
+            "artista": faixa.artista,
+            "duracao": faixa.duracao_segundos,
+            "capa": faixa.capa_url,
+        },
+    )
+    return BibliotecaFaixaOut(**dict(resultado.mappings().one()))
+
+
+@router.delete("/biblioteca/{spotify_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remover_da_biblioteca(
+    spotify_id: str = Path(pattern=SPOTIFY_ID_PATTERN),
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+):
+    resultado = await db.execute(
+        text(
+            """
+            DELETE FROM aluno_biblioteca_faixas
+            WHERE aluno_id = CAST(:aluno AS uuid) AND spotify_id = :spotify_id
+            """
+        ),
+        {"aluno": str(aluno.aluno_id), "spotify_id": spotify_id},
+    )
+    if resultado.rowcount == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Faixa não está na sua biblioteca")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/pedidos", response_model=PedidoOut, status_code=status.HTTP_201_CREATED)

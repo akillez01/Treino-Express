@@ -91,6 +91,57 @@ async def test_limite_de_pedidos_pendentes_por_aluno(client, duas_academias, spo
     ).status_code == 429
 
 
+async def test_biblioteca_salva_lista_remove_e_isola_alunos(client, duas_academias, spotify_falso):
+    h_a = auth_header(duas_academias["token_a"])
+    h_b = auth_header(duas_academias["token_b"])
+
+    salvo = await client.post("/v1/jukebox/biblioteca", json={"spotify_id": ID_A}, headers=h_a)
+    assert salvo.status_code == 201
+    assert salvo.json()["spotify_id"] == ID_A
+
+    biblioteca_a = await client.get("/v1/jukebox/biblioteca", headers=h_a)
+    biblioteca_b = await client.get("/v1/jukebox/biblioteca", headers=h_b)
+    assert [f["spotify_id"] for f in biblioteca_a.json()["faixas"]] == [ID_A]
+    assert biblioteca_b.json()["faixas"] == []
+
+    removido = await client.delete(f"/v1/jukebox/biblioteca/{ID_A}", headers=h_a)
+    assert removido.status_code == 204
+    assert (await client.get("/v1/jukebox/biblioteca", headers=h_a)).json()["faixas"] == []
+
+
+async def test_biblioteca_nao_duplica_faixa(client, duas_academias, spotify_falso):
+    h = auth_header(duas_academias["token_a"])
+    for _ in range(2):
+        assert (
+            await client.post("/v1/jukebox/biblioteca", json={"spotify_id": ID_B}, headers=h)
+        ).status_code == 201
+    faixas = (await client.get("/v1/jukebox/biblioteca", headers=h)).json()["faixas"]
+    assert len(faixas) == 1 and faixas[0]["spotify_id"] == ID_B
+
+
+async def test_biblioteca_rejeita_id_invalido(client, duas_academias):
+    h = auth_header(duas_academias["token_a"])
+    assert (
+        await client.post("/v1/jukebox/biblioteca", json={"spotify_id": "../../x"}, headers=h)
+    ).status_code == 422
+    assert (await client.delete("/v1/jukebox/biblioteca/not-valid", headers=h)).status_code == 422
+
+
+async def test_biblioteca_retorna_404_sem_metadados(
+    client, duas_academias, spotify_falso, monkeypatch
+):
+    async def ausente(_spotify_id):
+        return None
+
+    monkeypatch.setattr(spotify, "obter_faixa", ausente)
+    r = await client.post(
+        "/v1/jukebox/biblioteca",
+        json={"spotify_id": ID_A},
+        headers=auth_header(duas_academias["token_a"]),
+    )
+    assert r.status_code == 404
+
+
 async def test_id_invalido_e_rejeitado(client, duas_academias, spotify_falso):
     r = await client.post(
         "/v1/jukebox/pedidos",

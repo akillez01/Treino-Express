@@ -3,13 +3,18 @@
 import { useState } from "react";
 import {
   buscarMusicas,
+  bibliotecaJukebox,
   filaJukebox,
   pedirMusica,
+  removerBiblioteca,
+  salvarBiblioteca,
   statusJukebox,
   useApi,
+  type FaixaBiblioteca,
   type FaixaSpotify,
 } from "@/lib/api";
 import AlunoTabs from "../_components/AlunoTabs";
+import SpotifyPlayer, { selecionarFaixaSpotify } from "./SpotifyPlayer";
 import s from "./jukebox.module.css";
 
 const mmss = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
@@ -17,11 +22,15 @@ const mmss = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, 
 export default function Jukebox() {
   const status = useApi("jb-status", statusJukebox);
   const fila = useApi("jb-fila", filaJukebox);
+  const biblioteca = useApi("jb-biblioteca", bibliotecaJukebox);
   const [q, setQ] = useState("");
   const [faixas, setFaixas] = useState<FaixaSpotify[] | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [pedindo, setPedindo] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState<string | null>(null);
+  const [removendo, setRemovendo] = useState<string | null>(null);
+  const [selecionada, setSelecionada] = useState<FaixaBiblioteca | null>(null);
 
   async function buscar(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +61,50 @@ export default function Jukebox() {
     }
   }
 
+  async function salvar(f: FaixaSpotify) {
+    setSalvando(f.id);
+    setMsg(null);
+    try {
+      const faixa = await salvarBiblioteca(f.id);
+      setSelecionada(faixa);
+      selecionarFaixaSpotify(faixa.spotify_id);
+      biblioteca.recarregar();
+      setMsg({ tipo: "ok", texto: `"${faixa.titulo}" foi salva na sua biblioteca.` });
+    } catch (err) {
+      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Não foi possível salvar" });
+    } finally {
+      setSalvando(null);
+    }
+  }
+
+  async function remover(f: FaixaBiblioteca) {
+    setRemovendo(f.spotify_id);
+    setMsg(null);
+    try {
+      await removerBiblioteca(f.spotify_id);
+      if (selecionada?.spotify_id === f.spotify_id) setSelecionada(null);
+      biblioteca.recarregar();
+      setMsg({ tipo: "ok", texto: `"${f.titulo}" foi removida da sua biblioteca.` });
+    } catch (err) {
+      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Não foi possível remover" });
+    } finally {
+      setRemovendo(null);
+    }
+  }
+
+  function escolherResultado(f: FaixaSpotify) {
+    selecionarFaixaSpotify(f.id);
+    setSelecionada({
+      spotify_id: f.id,
+      titulo: f.titulo,
+      artista: f.artista,
+      duracao_segundos: f.duracao_segundos,
+      capa_url: f.capa_url,
+      adicionada_em: "",
+    });
+  }
+
+  const salvos = new Set((biblioteca.data?.faixas ?? []).map((f) => f.spotify_id));
   const naoConfigurado = status.data && !status.data.spotify_configurado;
 
   return (
@@ -101,13 +154,57 @@ export default function Jukebox() {
                     {f.artista} · {mmss(f.duracao_segundos)}
                   </div>
                 </div>
-                <button className={s.pedir} disabled={pedindo === f.id} onClick={() => pedir(f)}>
-                  {pedindo === f.id ? "..." : "Pedir"}
-                </button>
+                <div className={s.acoes}>
+                  <button className={s.ouvir} onClick={() => escolherResultado(f)}>
+                    Ouvir
+                  </button>
+                  <button className={s.salvar} disabled={salvando === f.id || salvos.has(f.id)} onClick={() => salvar(f)}>
+                    {salvando === f.id ? "..." : salvos.has(f.id) ? "Salvo" : "Salvar"}
+                  </button>
+                  <button className={s.pedir} disabled={pedindo === f.id} onClick={() => pedir(f)}>
+                    {pedindo === f.id ? "..." : "Pedir"}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
+
+        <section className={s.library}>
+          <h2 className={s.h2}>Minha biblioteca</h2>
+          <p className={s.librarySub}>Suas músicas para ouvir com fones durante o treino.</p>
+          {selecionada && <SpotifyPlayer spotifyId={selecionada.spotify_id} titulo={selecionada.titulo} />}
+          {!selecionada && biblioteca.data?.faixas[0] && (
+            <SpotifyPlayer spotifyId={biblioteca.data.faixas[0].spotify_id} titulo={biblioteca.data.faixas[0].titulo} />
+          )}
+          <ul className={s.list}>
+            {biblioteca.data?.faixas.length === 0 && <li className={s.vazio}>Sua biblioteca está vazia.</li>}
+            {biblioteca.data?.faixas.map((f) => (
+              <li key={f.spotify_id} className={selecionada?.spotify_id === f.spotify_id ? `${s.item} ${s.itemOn}` : s.item}>
+                {f.capa_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={f.capa_url} alt="" className={s.capa} />
+                ) : (
+                  <div className={s.capa} />
+                )}
+                <div className={s.info}>
+                  <div className={s.nome}>{f.titulo}</div>
+                  <div className={s.artista}>
+                    {f.artista} · {mmss(f.duracao_segundos)}
+                  </div>
+                </div>
+                <div className={s.acoes}>
+                  <button className={s.ouvir} onClick={() => setSelecionada(f)}>
+                    Ouvir
+                  </button>
+                  <button className={s.remover} disabled={removendo === f.spotify_id} onClick={() => remover(f)}>
+                    {removendo === f.spotify_id ? "..." : "Remover"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <h2 className={s.h2}>Na fila</h2>
         <ul className={s.list}>

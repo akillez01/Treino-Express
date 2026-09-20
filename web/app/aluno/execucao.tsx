@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import AjusteSheet from "./ajuste";
+import SpotifyPlayer from "./jukebox/SpotifyPlayer";
 import s from "./execucao.module.css";
 
 const CIRC = 496.4; // 2 * PI * 79 (raio do anel do cronômetro)
@@ -133,6 +134,8 @@ export default function Execucao({ treino, onSair }: { treino: Treino; onSair: (
             <span key={e.ordem} className={i < idx ? s.done : i === idx ? s.cur : s.todo} />
           ))}
         </div>
+
+        <SpotifyPlayer compacto />
 
         <section className={s.card}>
           <div className={s.figure}>
