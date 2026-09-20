@@ -1,123 +1,66 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { gerarTreino, type Treino } from "@/lib/api";
-import Execucao from "./execucao";
-import s from "./page.module.css";
+import s from "./hub.module.css";
 
-const FOCOS = [
-  { id: "peito_triceps", nome: "Peito e Tríceps", desc: "Peitoral e posterior do braço", img: "supino-com-barra" },
-  { id: "costas_biceps", nome: "Costas e Bíceps", desc: "Dorsais e anterior do braço", img: "puxada-frontal" },
-  { id: "pernas", nome: "Pernas", desc: "Quadríceps, posterior, panturrilha", img: "maquina-extensora" },
-  { id: "ombros", nome: "Ombros", desc: "Deltoides e trapézio", img: "press-militar-halteres" },
-  { id: "bracos", nome: "Braços", desc: "Bíceps e tríceps", img: "rosca-direta" },
-  { id: "fullbody", nome: "Fullbody", desc: "Corpo inteiro", img: "prensa-de-pernas" },
-] as const;
+const AREAS = [
+  {
+    href: "/aluno",
+    tag: "Aluno",
+    titulo: "App do aluno",
+    texto: "Escolha o tempo e o foco, gere o treino e use o descanso entre as séries com ofertas e jukebox.",
+    icone: "▶",
+  },
+  {
+    href: "/academia",
+    tag: "Gestor",
+    titulo: "Painel da academia",
+    texto: "Alunos, financeiro, repasses dos anunciantes e o controle das telas da unidade.",
+    icone: "▦",
+  },
+  {
+    href: "/anunciante",
+    tag: "Comércio parceiro",
+    titulo: "Painel do anunciante",
+    texto: "Campanhas, funil de escaneamentos e resgates, e o crédito para anunciar nas academias.",
+    icone: "◎",
+  },
+  {
+    href: "/tv",
+    tag: "Kiosk",
+    titulo: "Painel da TV",
+    texto: "Tela da academia: anúncio do parceiro de um lado, fila da jukebox do outro.",
+    icone: "▭",
+  },
+];
 
-const qtdExercicios = (min: number) => Math.min(Math.max(Math.round(min / 9), 3), 6);
-
-export default function Home() {
-  const [minutos, setMinutos] = useState(30);
-  const [foco, setFoco] = useState<string>("pernas");
-  const [treino, setTreino] = useState<Treino | null>(null);
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const atual = FOCOS.find((f) => f.id === foco)!;
-  const data = new Date()
-    .toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
-    .replace(".", "");
-
-  async function gerar() {
-    setErro(null);
-    setCarregando(true);
-    try {
-      setTreino(await gerarTreino(minutos, foco));
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao falar com a API");
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  if (treino) return <Execucao treino={treino} onSair={() => setTreino(null)} />;
-
+export default function Inicio() {
   return (
     <main className={s.page}>
       <div className={s.wrap}>
         <header className={s.head}>
+          <div className={s.logo}>TE</div>
           <div>
-            <div className={s.eyebrow}>{data}</div>
-            <h1 className={s.title}>
-              Meu Treino
-              <br />
-              de Hoje
-            </h1>
-          </div>
-          <div className={s.avatar} aria-hidden>
-            TE
+            <h1 className={s.title}>Treino Express</h1>
+            <p className={s.lead}>
+              Treino rápido para o aluno, receita extra para a academia e clientes novos para o comércio local.
+            </p>
           </div>
         </header>
 
-        <section className={s.card}>
-          <div className={s.cardRow}>
-            <label className={s.label} htmlFor="tempo">
-              TEMPO DISPONÍVEL
-            </label>
-            <div>
-              <span className={s.value}>{minutos}</span>
-              <span className={s.unit}>min</span>
-            </div>
-          </div>
-          <input
-            id="tempo"
-            className={s.slider}
-            type="range"
-            min={15}
-            max={60}
-            step={5}
-            value={minutos}
-            onChange={(e) => setMinutos(Number(e.target.value))}
-          />
-          <div className={s.limits}>
-            <span>15 min</span>
-            <span>60 min</span>
-          </div>
-        </section>
-
-        <div className={s.grid} role="radiogroup" aria-label="Foco muscular">
-          {FOCOS.map((f) => (
-            <button
-              key={f.id}
-              role="radio"
-              aria-checked={f.id === foco}
-              className={`${s.focus} ${f.id === foco ? s.focusOn : ""}`}
-              onClick={() => setFoco(f.id)}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className={s.thumb} src={`/exercicios/${f.img}.png`} alt={f.nome} />
-              <span>
-                <span className={s.focusName}>{f.nome}</span>
-                <span className={s.focusDesc}>{f.desc}</span>
+        <div className={s.grid}>
+          {AREAS.map((a) => (
+            <Link key={a.href} href={a.href} className={s.card}>
+              <span className={s.icon} aria-hidden>
+                {a.icone}
               </span>
-            </button>
+              <span className={s.tag}>{a.tag}</span>
+              <span className={s.cardTitle}>{a.titulo}</span>
+              <span className={s.cardText}>{a.texto}</span>
+              <span className={s.go}>Abrir →</span>
+            </Link>
           ))}
         </div>
 
-        <button className={s.cta} onClick={gerar} disabled={carregando}>
-          {carregando ? "Gerando..." : "Gerar Treino →"}
-        </button>
-        {erro && <p className={s.summary}>{erro}</p>}
-        <p className={s.summary}>
-          {minutos} min · {atual.nome} · {qtdExercicios(minutos)} exercícios
-        </p>
-
-        <nav className={s.panels} aria-label="Painéis">
-          <span className={s.panelsLabel}>PAINÉIS</span>
-          <Link href="/academia">Academia</Link>
-          <Link href="/anunciante">Anunciante</Link>
-          <Link href="/tv">TV</Link>
-        </nav>
+        <p className={s.foot}>Ambiente de demonstração com dados de exemplo.</p>
       </div>
     </main>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import s from "./tv.module.css";
@@ -51,6 +52,11 @@ export default function PainelTV() {
   const [now, setNow] = useState<Date | null>(null);
   const [scale, setScale] = useState(1);
   const ref = useRef<HTMLDivElement>(null);
+  const [kiosk, setKiosk] = useState(false);
+
+  useEffect(() => {
+    setKiosk(new URLSearchParams(window.location.search).has("kiosk"));
+  }, []);
 
   useEffect(() => {
     const ajustar = () => setScale(Math.min(window.innerWidth / 1920, window.innerHeight / 1080));
@@ -81,6 +87,12 @@ export default function PainelTV() {
 
   return (
     <div className={s.viewport}>
+      {!kiosk && (
+        <nav className={s.exit} aria-label="Sair da TV">
+          <Link href="/">← Início</Link>
+          <Link href="/academia/telas">Telas</Link>
+        </nav>
+      )}
       <div ref={ref} className={s.stage} style={{ transform: `scale(${scale})` }}>
         <div className={s.bar}>
           <div className={s.logo}>IF</div>

@@ -554,3 +554,31 @@
   line-height: 1.4;
   text-wrap: pretty;
 }
+
+/* Saída discreta (fica fora do canvas escalado). ?kiosk esconde tudo. */
+.exit {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  gap: 6px;
+  opacity: 0.35;
+  transition: opacity 180ms ease;
+}
+
+.exit:hover,
+.exit:focus-within {
+  opacity: 1;
+}
+
+.exit a {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(16, 18, 22, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}

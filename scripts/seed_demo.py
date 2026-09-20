@@ -61,7 +61,7 @@ SEED = [
     """,
     f"""
     INSERT INTO anunciantes (id, nome, categoria, email_contato, distancia_metros, saldo_centavos) VALUES
-      ('{NUTRI}', 'Nutri Prime Suplementos', 'Suplementos', 'contato@nutriprime.example', 300, 342000),
+      ('{NUTRI}', 'Nutri Prime Suplementos', 'Suplementos', 'contato@nutriprime.example', 300, 34200),
       ('{ACAI}', 'Açaí do Ponto', 'Alimentação', 'contato@acaidoponto.example', 80, 90000),
       ('{FISIO}', 'Fisio Movimento', 'Saúde', 'contato@fisiomov.example', 450, 60000),
       ('{IRONWEAR}', 'Loja Iron Wear', 'Vestuário esportivo', 'contato@ironwear.example', 200, 110000)
@@ -90,7 +90,7 @@ SEED = [
            (ARRAY['mensal','trimestral','anual'])[1 + g % 3]::plano_aluno,
            (ARRAY[15990, 13990, 12990])[1 + g % 3],
            (CASE WHEN g % 25 = 0 THEN 'atrasado' WHEN g % 12 = 0 THEN 'pendente' ELSE 'em_dia' END)::situacao_pagamento,
-           (CURRENT_DATE - (30 + g * 6)::int)
+           (CURRENT_DATE - (CASE WHEN g <= 6 THEN g * 2 ELSE 30 + g * 6 END)::int)
     FROM generate_series(1, 110) g
     """,
     # --- check-ins dos últimos 28 dias (frequência semanal varia por aluno)
@@ -128,7 +128,7 @@ SEED = [
     f"""
     INSERT INTO impressoes (academia_id, campanha_id, tela_id, nonce, custo_centavos, exibida_em)
     SELECT c.academia_id, c.id,
-           (SELECT id FROM telas t WHERE t.academia_id = c.academia_id ORDER BY t.id LIMIT 1),
+           (SELECT id FROM telas t WHERE t.academia_id = c.academia_id ORDER BY random() * (g + d + 1) LIMIT 1),
            md5(random()::text || clock_timestamp()::text || g::text),
            10,
            date_trunc('day', now()) - (d || ' days')::interval
@@ -154,18 +154,18 @@ SEED = [
     # --- financeiro da academia Iron Factory (3 meses)
     f"""
     INSERT INTO lancamentos (academia_id, origem, descricao, valor_centavos, status, competencia, criado_em, liquidado_em) VALUES
-      ('{IRON}', 'mensalidade', 'Mensalidades · lote diário (38 cobranças)', 523620, 'liquidado', date_trunc('month', CURRENT_DATE), now() - interval '5 days', now() - interval '5 days'),
+      ('{IRON}', 'mensalidade', 'Mensalidades · lotes do mês (120 cobranças)', 1668000, 'liquidado', date_trunc('month', CURRENT_DATE), now() - interval '5 days', now() - interval '5 days'),
       ('{IRON}', 'anuncio', 'Nutri Prime Suplementos · campanha whey', 148000, 'liquidado', date_trunc('month', CURRENT_DATE), now() - interval '6 days', now() - interval '6 days'),
       ('{IRON}', 'jukebox', 'Jukebox · pedidos avulsos da semana', 31200, 'liquidado', date_trunc('month', CURRENT_DATE), now() - interval '8 days', now() - interval '8 days'),
       ('{IRON}', 'anuncio', 'Açaí do Ponto · campanha tigela pós-treino', 86000, 'a_receber', date_trunc('month', CURRENT_DATE), now() - interval '10 days', NULL),
       ('{IRON}', 'mensalidade', 'Mensalidades · retentativa de cobrança', 47970, 'recusado', date_trunc('month', CURRENT_DATE), now() - interval '12 days', NULL),
       ('{IRON}', 'anuncio', 'Fisio Movimento · avaliação postural', 64000, 'liquidado', date_trunc('month', CURRENT_DATE), now() - interval '15 days', now() - interval '15 days'),
-      ('{IRON}', 'mensalidade', 'Mensalidades · fechamento do mês', 5612000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '1 month', now() - interval '35 days', now() - interval '35 days'),
-      ('{IRON}', 'anuncio', 'Anúncios · repasse do mês', 648000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '1 month', now() - interval '35 days', now() - interval '35 days'),
-      ('{IRON}', 'jukebox', 'Jukebox · pedidos do mês', 118000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '1 month', now() - interval '35 days', now() - interval '35 days'),
-      ('{IRON}', 'mensalidade', 'Mensalidades · fechamento do mês', 5387000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '2 month', now() - interval '65 days', now() - interval '65 days'),
-      ('{IRON}', 'anuncio', 'Anúncios · repasse do mês', 521000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '2 month', now() - interval '65 days', now() - interval '65 days'),
-      ('{IRON}', 'jukebox', 'Jukebox · pedidos do mês', 101000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '2 month', now() - interval '65 days', now() - interval '65 days')
+      ('{IRON}', 'mensalidade', 'Mensalidades · fechamento do mês', 1612000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '1 month', now() - interval '35 days', now() - interval '35 days'),
+      ('{IRON}', 'anuncio', 'Anúncios · repasse do mês', 178000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '1 month', now() - interval '35 days', now() - interval '35 days'),
+      ('{IRON}', 'jukebox', 'Jukebox · pedidos do mês', 29000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '1 month', now() - interval '35 days', now() - interval '35 days'),
+      ('{IRON}', 'mensalidade', 'Mensalidades · fechamento do mês', 1538000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '2 month', now() - interval '65 days', now() - interval '65 days'),
+      ('{IRON}', 'anuncio', 'Anúncios · repasse do mês', 141000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '2 month', now() - interval '65 days', now() - interval '65 days'),
+      ('{IRON}', 'jukebox', 'Jukebox · pedidos do mês', 24000, 'liquidado', date_trunc('month', CURRENT_DATE) - interval '2 month', now() - interval '65 days', now() - interval '65 days')
     """,
     f"""
     INSERT INTO repasses (academia_id, anunciante_id, bruto_centavos, taxa_centavos, liquido_centavos, status, competencia, criado_em, pago_em) VALUES

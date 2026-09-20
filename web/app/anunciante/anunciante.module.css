@@ -137,6 +137,11 @@
 }
 
 .secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  text-decoration: none;
   width: 100%;
   margin-top: 20px;
   height: 44px;
@@ -467,4 +472,11 @@
 .colInv {
   grid-template-columns: minmax(96px, 0.9fr) minmax(190px, 2.2fr) minmax(110px, 1fr) minmax(96px, 0.9fr) 116px;
   min-width: 720px;
+}
+
+.ctaBtn:disabled,
+.pay:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
 }

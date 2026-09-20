@@ -28,7 +28,9 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
     # Aceita também qualquer túnel temporário da Cloudflare e o app na Vercel.
-    cors_origin_regex: str = r"https://.*\.(trycloudflare\.com|vercel\.app)"
+    cors_origin_regex: str = (
+        r"(https://.*\.(trycloudflare\.com|vercel\.app))|(http://(localhost|127\.0\.0\.1)(:\d+)?)"
+    )
 
     # Login de demonstração: emite token só do aluno demo abaixo, enquanto o
     # login real não existe. Desligado por padrão; nunca ligar em produção.
