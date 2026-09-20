@@ -3,7 +3,9 @@
 import { useState } from "react";
 import {
   buscarMusicas,
+  buscarPlaylists,
   bibliotecaJukebox,
+  faixasPlaylist,
   filaJukebox,
   pedirMusica,
   removerBiblioteca,
@@ -12,6 +14,7 @@ import {
   useApi,
   type FaixaBiblioteca,
   type FaixaSpotify,
+  type PlaylistSpotify,
 } from "@/lib/api";
 import AlunoTabs from "../_components/AlunoTabs";
 import SpotifyPlayer, { selecionarFaixaSpotify } from "./SpotifyPlayer";
@@ -24,7 +27,12 @@ export default function Jukebox() {
   const fila = useApi("jb-fila", filaJukebox);
   const biblioteca = useApi("jb-biblioteca", bibliotecaJukebox);
   const [q, setQ] = useState("");
+  const [modo, setModo] = useState<"musicas" | "playlists">("musicas");
   const [faixas, setFaixas] = useState<FaixaSpotify[] | null>(null);
+  const [playlists, setPlaylists] = useState<PlaylistSpotify[] | null>(null);
+  const [playlistAberta, setPlaylistAberta] = useState<string | null>(null);
+  const [faixasDaPlaylist, setFaixasDaPlaylist] = useState<FaixaSpotify[] | null>(null);
+  const [carregandoPlaylist, setCarregandoPlaylist] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [pedindo, setPedindo] = useState<string | null>(null);
@@ -38,12 +46,39 @@ export default function Jukebox() {
     setBuscando(true);
     setMsg(null);
     try {
-      setFaixas((await buscarMusicas(q.trim())).faixas);
+      if (modo === "musicas") {
+        setPlaylists(null);
+        setFaixas((await buscarMusicas(q.trim())).faixas);
+      } else {
+        setFaixas(null);
+        setPlaylists((await buscarPlaylists(q.trim())).playlists);
+      }
     } catch (err) {
       setFaixas(null);
+      setPlaylists(null);
       setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Falha na busca" });
     } finally {
       setBuscando(false);
+    }
+  }
+
+  async function abrirPlaylist(p: PlaylistSpotify) {
+    if (playlistAberta === p.id) {
+      setPlaylistAberta(null);
+      setFaixasDaPlaylist(null);
+      return;
+    }
+    setCarregandoPlaylist(p.id);
+    setPlaylistAberta(p.id);
+    setFaixasDaPlaylist(null);
+    setMsg(null);
+    try {
+      setFaixasDaPlaylist((await faixasPlaylist(p.id)).faixas);
+    } catch (err) {
+      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Não foi possível abrir a playlist" });
+      setPlaylistAberta(null);
+    } finally {
+      setCarregandoPlaylist(null);
     }
   }
 
@@ -107,6 +142,36 @@ export default function Jukebox() {
   const salvos = new Set((biblioteca.data?.faixas ?? []).map((f) => f.spotify_id));
   const naoConfigurado = status.data && !status.data.spotify_configurado;
 
+  function renderFaixa(f: FaixaSpotify) {
+    return (
+      <li key={f.id} className={s.item}>
+        {f.capa_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={f.capa_url} alt="" className={s.capa} />
+        ) : (
+          <div className={s.capa} />
+        )}
+        <div className={s.info}>
+          <div className={s.nome}>{f.titulo}</div>
+          <div className={s.artista}>
+            {f.artista} · {mmss(f.duracao_segundos)}
+          </div>
+        </div>
+        <div className={s.acoes}>
+          <button className={s.ouvir} onClick={() => escolherResultado(f)}>
+            Ouvir
+          </button>
+          <button className={s.salvar} disabled={salvando === f.id || salvos.has(f.id)} onClick={() => salvar(f)}>
+            {salvando === f.id ? "Salvando..." : salvos.has(f.id) ? "Na biblioteca" : "＋ Salvar na biblioteca"}
+          </button>
+          <button className={s.pedir} disabled={pedindo === f.id} onClick={() => pedir(f)}>
+            {pedindo === f.id ? "..." : "Pedir"}
+          </button>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <main className={s.page}>
       <div className={s.wrap}>
@@ -120,12 +185,45 @@ export default function Jukebox() {
           </div>
         )}
 
+        <div className={s.segmented} role="tablist" aria-label="Fonte da busca">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={modo === "musicas"}
+            className={modo === "musicas" ? s.segmentOn : s.segment}
+            onClick={() => {
+              setModo("musicas");
+              setFaixas(null);
+              setPlaylists(null);
+              setPlaylistAberta(null);
+              setFaixasDaPlaylist(null);
+            }}
+          >
+            Músicas
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={modo === "playlists"}
+            className={modo === "playlists" ? s.segmentOn : s.segment}
+            onClick={() => {
+              setModo("playlists");
+              setFaixas(null);
+              setPlaylists(null);
+              setPlaylistAberta(null);
+              setFaixasDaPlaylist(null);
+            }}
+          >
+            Playlists do Spotify
+          </button>
+        </div>
+
         <form className={s.search} onSubmit={buscar}>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar música ou artista"
-            aria-label="Buscar música"
+            placeholder={modo === "musicas" ? "Buscar música ou artista" : "Buscar playlist no Spotify"}
+            aria-label={modo === "musicas" ? "Buscar música" : "Buscar playlist"}
             maxLength={100}
           />
           <button disabled={buscando || q.trim().length < 2}>{buscando ? "..." : "Buscar"}</button>
@@ -137,34 +235,39 @@ export default function Jukebox() {
           </div>
         )}
 
-        {faixas && (
+        {modo === "musicas" && faixas && (
           <ul className={s.list}>
             {faixas.length === 0 && <li className={s.vazio}>Nada encontrado.</li>}
-            {faixas.map((f) => (
-              <li key={f.id} className={s.item}>
-                {f.capa_url ? (
+            {faixas.map(renderFaixa)}
+          </ul>
+        )}
+
+        {modo === "playlists" && playlists && (
+          <ul className={s.list}>
+            {playlists.length === 0 && <li className={s.vazio}>Nenhuma playlist encontrada.</li>}
+            {playlists.map((p) => (
+              <li key={p.id} className={s.playlistItem}>
+                {p.cover_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.capa_url} alt="" className={s.capa} />
+                  <img src={p.cover_url} alt="" className={s.capa} />
                 ) : (
                   <div className={s.capa} />
                 )}
                 <div className={s.info}>
-                  <div className={s.nome}>{f.titulo}</div>
+                  <div className={s.nome}>{p.name}</div>
                   <div className={s.artista}>
-                    {f.artista} · {mmss(f.duracao_segundos)}
+                    {p.owner || "Spotify"} · {p.tracks_total} {p.tracks_total === 1 ? "faixa" : "faixas"}
                   </div>
                 </div>
-                <div className={s.acoes}>
-                  <button className={s.ouvir} onClick={() => escolherResultado(f)}>
-                    Ouvir
-                  </button>
-                  <button className={s.salvar} disabled={salvando === f.id || salvos.has(f.id)} onClick={() => salvar(f)}>
-                    {salvando === f.id ? "..." : salvos.has(f.id) ? "Salvo" : "Salvar"}
-                  </button>
-                  <button className={s.pedir} disabled={pedindo === f.id} onClick={() => pedir(f)}>
-                    {pedindo === f.id ? "..." : "Pedir"}
-                  </button>
-                </div>
+                <button className={s.abrirPlaylist} onClick={() => abrirPlaylist(p)} disabled={carregandoPlaylist === p.id}>
+                  {carregandoPlaylist === p.id ? "Abrindo..." : playlistAberta === p.id ? "Fechar" : "Ver faixas"}
+                </button>
+                {playlistAberta === p.id && faixasDaPlaylist && (
+                  <ul className={s.playlistTracks}>
+                    {faixasDaPlaylist.length === 0 && <li className={s.vazio}>Esta playlist não tem faixas disponíveis.</li>}
+                    {faixasDaPlaylist.map(renderFaixa)}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>

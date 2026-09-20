@@ -307,6 +307,13 @@ export type FaixaSpotify = {
   capa_url: string | null;
   explicita: boolean;
 };
+export type PlaylistSpotify = {
+  id: string;
+  name: string;
+  owner: string;
+  cover_url: string | null;
+  tracks_total: number;
+};
 export type ItemFila = {
   id: string;
   titulo: string;
@@ -327,6 +334,13 @@ export type FaixaBiblioteca = {
 export const statusJukebox = () => api<{ spotify_configurado: boolean }>("aluno", "/v1/jukebox/status");
 export const buscarMusicas = (q: string) =>
   api<{ faixas: FaixaSpotify[] }>("aluno", `/v1/jukebox/busca?q=${encodeURIComponent(q)}`);
+export const buscarPlaylists = (q: string) =>
+  api<{ playlists: PlaylistSpotify[] }>("aluno", `/v1/jukebox/playlists?q=${encodeURIComponent(q)}`);
+export const faixasPlaylist = (spotifyId: string, limite = 30) =>
+  api<{ faixas: FaixaSpotify[] }>(
+    "aluno",
+    `/v1/jukebox/playlists/${encodeURIComponent(spotifyId)}/faixas?limite=${limite}`,
+  );
 export const pedirMusica = (spotifyId: string) =>
   api<{ pedido_id: string; titulo: string; artista: string; posicao: number }>("aluno", "/v1/jukebox/pedidos", {
     method: "POST",

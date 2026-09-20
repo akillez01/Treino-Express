@@ -21,6 +21,16 @@ def _faixa(spotify_id: str, titulo: str) -> spotify.Faixa:
     )
 
 
+def _playlist(playlist_id: str) -> spotify.Playlist:
+    return spotify.Playlist(
+        id=playlist_id,
+        name="Treino pesado",
+        owner="Aluno",
+        cover_url=None,
+        tracks_total=2,
+    )
+
+
 @pytest.fixture
 def spotify_falso(monkeypatch):
     catalogo = {ID_A: _faixa(ID_A, "Faixa A"), ID_B: _faixa(ID_B, "Faixa B")}
@@ -33,6 +43,18 @@ def spotify_falso(monkeypatch):
 
     monkeypatch.setattr(spotify, "buscar_faixas", buscar)
     monkeypatch.setattr(spotify, "obter_faixa", obter)
+
+
+@pytest.fixture
+def playlists_falsas(monkeypatch):
+    async def buscar(_termo, _limite=10):
+        return [_playlist(ID_A)]
+
+    async def faixas(_playlist_id, _limite=30):
+        return [_faixa(ID_B, "Faixa da playlist")]
+
+    monkeypatch.setattr(spotify, "buscar_playlists", buscar)
+    monkeypatch.setattr(spotify, "obter_faixas_playlist", faixas)
 
 
 async def test_busca_retorna_faixas(client, duas_academias, spotify_falso):
@@ -54,6 +76,24 @@ async def test_sem_credenciais_retorna_503(client, duas_academias, monkeypatch):
         "/v1/jukebox/busca?q=faixa", headers=auth_header(duas_academias["token_a"])
     )
     assert r.status_code == 503
+
+
+async def test_busca_playlist_e_faixas(client, duas_academias, playlists_falsas):
+    h = auth_header(duas_academias["token_a"])
+    playlists = await client.get("/v1/jukebox/playlists?q=treino", headers=h)
+    assert playlists.status_code == 200
+    assert playlists.json()["playlists"][0]["name"] == "Treino pesado"
+
+    faixas = await client.get(f"/v1/jukebox/playlists/{ID_A}/faixas", headers=h)
+    assert faixas.status_code == 200
+    assert faixas.json()["faixas"][0]["id"] == ID_B
+
+
+async def test_playlist_id_invalido_e_rejeitado(client, duas_academias):
+    r = await client.get(
+        "/v1/jukebox/playlists/not-valid/faixas", headers=auth_header(duas_academias["token_a"])
+    )
+    assert r.status_code == 422
 
 
 async def test_pedido_entra_na_fila_so_da_propria_academia(client, duas_academias, spotify_falso):

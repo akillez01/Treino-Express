@@ -44,6 +44,57 @@ async def buscar(
     return {"faixas": [f.dict() for f in faixas]}
 
 
+class FaixaSpotifyOut(BaseModel):
+    id: str
+    titulo: str
+    artista: str
+    duracao_segundos: int
+    capa_url: str | None
+    explicita: bool
+
+
+class PlaylistOut(BaseModel):
+    id: str
+    name: str
+    owner: str
+    cover_url: str | None
+    tracks_total: int
+
+
+class PlaylistsOut(BaseModel):
+    playlists: list[PlaylistOut]
+
+
+class PlaylistFaixasOut(BaseModel):
+    faixas: list[FaixaSpotifyOut]
+
+
+@router.get("/playlists", response_model=PlaylistsOut)
+async def buscar_playlists(
+    q: str = Query(min_length=2, max_length=100),
+    limite: int = Query(10, ge=1, le=20),
+    _: TokenPayload = Depends(get_current_aluno),
+):
+    try:
+        playlists = await spotify.buscar_playlists(q, limite)
+    except (spotify.SpotifyNaoConfigurado, spotify.SpotifyIndisponivel) as exc:
+        raise _erro_spotify(exc) from exc
+    return {"playlists": [playlist.dict() for playlist in playlists]}
+
+
+@router.get("/playlists/{spotify_id}/faixas", response_model=PlaylistFaixasOut)
+async def faixas_playlist(
+    spotify_id: str = Path(pattern=SPOTIFY_ID_PATTERN),
+    limite: int = Query(30, ge=1, le=50),
+    _: TokenPayload = Depends(get_current_aluno),
+):
+    try:
+        faixas = await spotify.obter_faixas_playlist(spotify_id, limite)
+    except (spotify.SpotifyNaoConfigurado, spotify.SpotifyIndisponivel) as exc:
+        raise _erro_spotify(exc) from exc
+    return {"faixas": [faixa.dict() for faixa in faixas]}
+
+
 class PedidoIn(BaseModel):
     spotify_id: str = Field(pattern=SPOTIFY_ID_PATTERN)
 
