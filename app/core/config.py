@@ -50,5 +50,10 @@ class Settings(BaseSettings):
     spotify_client_secret: str = ""
     spotify_market: str = "BR"
 
+    # WhatsApp Business Cloud API (Meta) — lembretes de sequência. Vazio = simulado.
+    whatsapp_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_template: str = "lembrete_sequencia"
+
 
 settings = Settings()

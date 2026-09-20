@@ -47,6 +47,7 @@ ignore = ["B008"]
 [tool.ruff.lint.per-file-ignores]
 # Consultas SQL longas em strings.
 "app/api/v1/*.py" = ["E501"]
+"app/services/*.py" = ["E501"]
 "scripts/*.py" = ["E501"]
 "alembic/versions/*.py" = ["E501"]
 "tests/*.py" = ["E501"]

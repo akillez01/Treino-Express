@@ -14,7 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_gestor, get_tenant_db
 from app.core.redis import get_redis
 from app.core.security import TokenPayload
-from app.services import jukebox_player, tv_events
+from app.integrations.whatsapp import client as whatsapp
+from app.services import jukebox_player, lembretes_service, tv_events
 
 router = APIRouter(prefix="/academia", tags=["academia"])
 
@@ -380,3 +381,30 @@ async def proxima_faixa(
 ):
     """Pula para a próxima faixa da fila (atualiza a TV na hora)."""
     await jukebox_player.avancar(db, get_redis(), gestor.academia_id)
+
+
+@router.get("/lembretes")
+async def lembretes(
+    db: AsyncSession = Depends(get_tenant_db),
+    _: TokenPayload = Depends(get_current_gestor),
+):
+    return {
+        "whatsapp_configurado": whatsapp.configurado(),
+        "candidatos": await lembretes_service.candidatos(db),
+        "historico": await lembretes_service.historico(db),
+    }
+
+
+class EnviarLembretesIn(BaseModel):
+    aluno_ids: list[uuid.UUID] | None = None
+
+
+@router.post("/lembretes/enviar")
+async def enviar_lembretes(
+    body: EnviarLembretesIn,
+    db: AsyncSession = Depends(get_tenant_db),
+    gestor: TokenPayload = Depends(get_current_gestor),
+):
+    ids = {str(i) for i in body.aluno_ids} if body.aluno_ids is not None else None
+    resultados = await lembretes_service.enviar(db, gestor.academia_id, ids)
+    return {"resultados": resultados, "simulado": not whatsapp.configurado()}

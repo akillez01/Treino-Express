@@ -14,6 +14,7 @@ from app.schemas.treino import (
     ExercicioOut,
     TreinoOut,
 )
+from app.services import progresso_service
 
 DESCANSO_PADRAO_SEGUNDOS = 59
 
@@ -151,6 +152,8 @@ async def concluir_exercicio(
         treino = await db.get(Treino, treino_id)
         if treino is not None:
             treino.concluido_em = datetime.now(UTC)
+            await db.flush()
+            await progresso_service.gravar_volume(db, treino_id)
 
     return ExercicioConcluidoOut(
         ordem=ordem,

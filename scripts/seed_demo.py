@@ -19,6 +19,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
+from app.services.progresso_service import _volume
 
 IRON = "11111111-1111-1111-1111-111111111111"
 POWER = "33333333-3333-3333-3333-333333333333"
@@ -39,6 +40,8 @@ def ids(values: tuple[str, ...]) -> str:
 
 # Ordem importa: apaga filhos antes dos pais.
 LIMPAR = [
+    f"DELETE FROM lembretes WHERE academia_id IN ({ids(ACADEMIAS)})",
+    f"DELETE FROM metas_exercicio WHERE academia_id IN ({ids(ACADEMIAS)})",
     f"DELETE FROM scans WHERE academia_id IN ({ids(ACADEMIAS)})",
     f"DELETE FROM impressoes WHERE academia_id IN ({ids(ACADEMIAS)})",
     f"DELETE FROM repasses WHERE academia_id IN ({ids(ACADEMIAS)})",
@@ -212,9 +215,24 @@ KG = re.compile(r"(\d+(?:[.,]\d+)?)\s*kg", re.I)
 FOCOS = ["pernas", "peito_triceps", "costas_biceps", "ombros", "bracos", "fullbody"]
 
 
+# (email, frequência base 0-1, parou há N dias, ranking, whatsapp+telefone, telefone sem consentimento)
+PERFIS = {
+    "marina.r@email.com": (0.45, None, True, "5511999990000", True),
+    "diego.s@email.com": (0.5, None, True, None, False),
+    "camila.t@email.com": (0.4, 5, True, "5511999990001", True),
+    "rafa.lima@email.com": (0.5, None, True, None, False),
+    "julia.p@email.com": (0.3, 9, False, "5511999990002", False),
+    "lucas.m@email.com": (0.55, None, True, None, False),
+    "bia.alencar@email.com": (0.45, 4, True, "5511999990003", True),
+    "thiago.n@email.com": (0.3, 12, False, None, False),
+    "renata.v@email.com": (0.4, None, True, None, False),
+    "paulo.b@email.com": (0.3, None, False, None, False),
+}
+
+
 async def seed_historico(conn) -> None:
-    """10 semanas de treinos concluídos do aluno demo, com carga subindo aos poucos
-    e frequência crescente — para a tela de evolução mostrar algo real."""
+    """Histórico de treinos concluídos (10 semanas) dos alunos nomeados, com carga
+    subindo aos poucos — alimenta evolução, ranking e lembretes."""
     catalogo = (
         (
             await conn.execute(
@@ -231,73 +249,132 @@ async def seed_historico(conn) -> None:
     for e in catalogo:
         por_foco[e["foco"]].append(e)
     if not por_foco:
-        print("Catálogo de exercícios vazio: histórico do aluno demo não criado.")
+        print("Catálogo de exercícios vazio: histórico dos alunos demo não criado.")
         return
 
+    ids = {
+        r["email"]: r["id"]
+        for r in (
+            await conn.execute(
+                text("SELECT id::text, email FROM alunos WHERE academia_id = :a"), {"a": IRON}
+            )
+        )
+        .mappings()
+        .all()
+    }
     rnd = random.Random(7)
     tz = ZoneInfo("America/Sao_Paulo")
     hoje = date.today()
-    n = 0
-    for atras in range(70, 0, -1):
-        dia = hoje - timedelta(days=atras)
-        semana = (70 - atras) // 7  # 0 = mais antiga
-        if dia.weekday() == 6 or rnd.random() > min(0.6, 0.3 + 0.04 * semana):
+    total = 0
+    for i, (email, (freq, parou_ha, ranking, telefone, lembretes)) in enumerate(PERFIS.items()):
+        aluno = ids.get(email)
+        if not aluno:
             continue
-        foco = FOCOS[n % len(FOCOS)]
-        exs = por_foco.get(foco, [])[:4]
-        if not exs:
-            continue
-        n += 1
-        ini = datetime(
-            dia.year,
-            dia.month,
-            dia.day,
-            rnd.choice([6, 7, 12, 18, 19]),
-            rnd.choice([0, 15, 30]),
-            tzinfo=tz,
+        await conn.execute(
+            text(
+                "UPDATE alunos SET ranking_visivel = :r, lembretes_whatsapp = :l, telefone = :t "
+                "WHERE id = CAST(:a AS uuid)"
+            ),
+            {"r": ranking, "l": lembretes, "t": telefone, "a": aluno},
         )
-        dur = rnd.randint(28, 48)
-        treino_id = (
+        if parou_ha:  # quem parou não tem check-in depois do último treino
             await conn.execute(
                 text(
-                    "INSERT INTO treinos (academia_id, aluno_id, minutos_disponiveis, foco, iniciado_em, "
-                    "concluido_em, esforco) VALUES (:ac, :al, :min, CAST(:foco AS foco_muscular), :ini, :fim, :esf) "
-                    "RETURNING id::text"
+                    "DELETE FROM check_ins WHERE aluno_id = CAST(:a AS uuid) "
+                    "AND entrada_em >= date_trunc('day', now()) - make_interval(days => :d)"
                 ),
-                {
-                    "ac": IRON,
-                    "al": ALUNO_DEMO,
-                    "min": rnd.choice([30, 40, 45]),
-                    "foco": foco,
-                    "ini": ini,
-                    "fim": ini + timedelta(minutes=dur),
-                    "esf": rnd.choice([3, 3, 4, 4, 5]),
-                },
+                {"a": aluno, "d": parou_ha - 1},
             )
-        ).scalar()
-        for ordem, e in enumerate(exs, start=1):
-            carga = e["carga_sugerida"]
-            m = KG.search(carga or "")
-            if m:
-                base = float(m.group(1).replace(",", "."))
-                kg = base + 2.5 * (semana // 2) + rnd.choice([0, 0, 2.5])
-                carga = KG.sub(f"{kg:g} kg", carga, count=1)
-            feito = ordem < len(exs) or rnd.random() > 0.1
+        n = i  # cada aluno começa em um foco diferente
+        ultimo_dia = 0 if parou_ha is None else parou_ha
+        for atras in range(70, ultimo_dia - 1, -1):
+            dia = hoje - timedelta(days=atras)
+            semana = (70 - atras) // 7
+            # quem "parou" treina sempre até o dia do corte, com mais constância
+            chance = min(0.85, freq + 0.03 * semana) if parou_ha else min(0.8, freq + 0.02 * semana)
+            if atras == ultimo_dia and parou_ha:
+                chance = 1.0  # garante que o último treino é exatamente há `parou_ha` dias
+            if dia.weekday() == 6 or rnd.random() > chance:
+                continue
+            foco = FOCOS[n % len(FOCOS)]
+            exs = por_foco.get(foco, [])[:4]
+            if not exs:
+                continue
+            n += 1
+            ini = datetime(
+                dia.year,
+                dia.month,
+                dia.day,
+                rnd.choice([6, 7, 12, 18, 19]),
+                rnd.choice([0, 15, 30]),
+                tzinfo=tz,
+            )
+            dur = rnd.randint(28, 48)
+            treino_id = (
+                await conn.execute(
+                    text(
+                        "INSERT INTO treinos (academia_id, aluno_id, minutos_disponiveis, foco, iniciado_em, "
+                        "concluido_em, esforco) VALUES (:ac, CAST(:al AS uuid), :min, CAST(:foco AS foco_muscular), "
+                        ":ini, :fim, :esf) RETURNING id::text"
+                    ),
+                    {
+                        "ac": IRON,
+                        "al": aluno,
+                        "min": rnd.choice([30, 40, 45]),
+                        "foco": foco,
+                        "ini": ini,
+                        "fim": ini + timedelta(minutes=dur),
+                        "esf": rnd.choice([3, 3, 4, 4, 5]),
+                    },
+                )
+            ).scalar()
+            volume = 0.0
+            for ordem, e in enumerate(exs, start=1):
+                carga = e["carga_sugerida"]
+                m = KG.search(carga or "")
+                if m:
+                    base = float(m.group(1).replace(",", "."))
+                    kg = base + 2.5 * (semana // 2) + rnd.choice([0, 0, 2.5]) + (i % 3) * 2.5
+                    carga = KG.sub(f"{kg:g} kg", carga, count=1)
+                feito = ordem < len(exs) or rnd.random() > 0.1
+                if feito:
+                    volume += _volume(carga, e["series_padrao"])
+                await conn.execute(
+                    text(
+                        "INSERT INTO treino_exercicios (treino_id, exercicio_id, ordem, series, carga, concluido_em) "
+                        "VALUES (CAST(:t AS uuid), CAST(:e AS uuid), :o, :s, :c, :fim)"
+                    ),
+                    {
+                        "t": treino_id,
+                        "e": e["id"],
+                        "o": ordem,
+                        "s": e["series_padrao"],
+                        "c": carga,
+                        "fim": ini + timedelta(minutes=ordem * 8) if feito else None,
+                    },
+                )
             await conn.execute(
-                text(
-                    "INSERT INTO treino_exercicios (treino_id, exercicio_id, ordem, series, carga, concluido_em) "
-                    "VALUES (CAST(:t AS uuid), CAST(:e AS uuid), :o, :s, :c, :fim)"
-                ),
-                {
-                    "t": treino_id,
-                    "e": e["id"],
-                    "o": ordem,
-                    "s": e["series_padrao"],
-                    "c": carga,
-                    "fim": ini + timedelta(minutes=ordem * 8) if feito else None,
-                },
+                text("UPDATE treinos SET volume_kg = :v WHERE id = CAST(:t AS uuid)"),
+                {"v": round(volume, 1), "t": treino_id},
             )
-    print(f"{n} treinos de histórico criados para o aluno demo.")
+            total += 1
+
+    # metas do aluno demo
+    for exercicio, alvo, dias in (("Supino com Barra", 60, 60), ("Prensa de Pernas", 110, 45)):
+        await conn.execute(
+            text(
+                "INSERT INTO metas_exercicio (academia_id, aluno_id, exercicio, alvo_kg, prazo) "
+                "VALUES (:ac, CAST(:al AS uuid), :e, :k, :p) ON CONFLICT DO NOTHING"
+            ),
+            {
+                "ac": IRON,
+                "al": ALUNO_DEMO,
+                "e": exercicio,
+                "k": alvo,
+                "p": hoje + timedelta(days=dias),
+            },
+        )
+    print(f"{total} treinos de histórico criados para os alunos demo.")
 
 
 async def main() -> None:

@@ -28,6 +28,7 @@ CONQUISTAS = [
     ("volume_1t", "Uma tonelada", "Levante 1.000 kg de volume total"),
     ("meta_semana", "Meta batida", "Cumpra a meta de treinos da semana"),
     ("novo_recorde", "Recorde pessoal", "Bata um recorde de carga nos últimos 7 dias"),
+    ("meta_exercicio", "Objetivo cumprido", "Alcance a meta de carga de um exercício"),
 ]
 
 
@@ -192,6 +193,28 @@ async def progresso(db: AsyncSession, aluno_id: UUID, dias: int = 90) -> dict:
                 "pontos": [{"data": d.isoformat(), "kg": kg} for d, kg in serie],
             }
         )
+    melhor_por_ex = {nome: max(kg for _, kg in pts) for nome, pts in historico.items()}
+    ritmo_por_ex = {}
+    for nome, pts in historico.items():
+        por_dia2: dict[date, float] = {}
+        for d, kg in pts:
+            por_dia2[d] = max(por_dia2.get(d, 0), kg)
+        ritmo_por_ex[nome] = _ritmo_kg_semana(sorted(por_dia2.items()))
+    lista_metas = await metas(db, aluno_id, melhor_por_ex, ritmo_por_ex)
+    opcoes = sorted(
+        {
+            n
+            for (n,) in (
+                await db.execute(
+                    text(
+                        "SELECT DISTINCT nome FROM exercicios WHERE carga_sugerida ~* '[0-9] *kg' "
+                        "AND ativo ORDER BY nome"
+                    )
+                )
+            ).all()
+        }
+        | set(melhor_por_ex)
+    )
     recordes.sort(key=lambda r: (-r["evolucao_kg"], -r["kg"]))
     evolucao.sort(key=lambda e: -len(e["pontos"]))
     recorde_recente = any(
@@ -232,6 +255,7 @@ async def progresso(db: AsyncSession, aluno_id: UUID, dias: int = 90) -> dict:
         "volume_1t": volume_total >= 1000,
         "meta_semana": treinos_semana >= meta,
         "novo_recorde": recorde_recente,
+        "meta_exercicio": any(m["atingida"] for m in lista_metas),
     }
 
     return {
@@ -250,6 +274,8 @@ async def progresso(db: AsyncSession, aluno_id: UUID, dias: int = 90) -> dict:
         ],
         "recordes": recordes[:6],
         "evolucao_carga": evolucao[:3],
+        "metas": lista_metas,
+        "opcoes_meta": opcoes,
         "pontuacao": {
             "total": pontos,
             "nivel": nivel,
@@ -322,3 +348,79 @@ async def resumo_treino(db: AsyncSession, aluno_id: UUID, treino_id: UUID) -> di
         "recordes": prs,
         "esforco": rows[0]["esforco"],
     }
+
+
+async def gravar_volume(db: AsyncSession, treino_id: UUID) -> float:
+    """Guarda o volume do treino ao concluir (alimenta o ranking sem recalcular tudo)."""
+    rows = (
+        await db.execute(
+            text(
+                "SELECT carga, series FROM treino_exercicios "
+                "WHERE treino_id = CAST(:t AS uuid) AND concluido_em IS NOT NULL"
+            ),
+            {"t": str(treino_id)},
+        )
+    ).all()
+    volume = round(sum(_volume(c, s) for c, s in rows), 1)
+    await db.execute(
+        text("UPDATE treinos SET volume_kg = :v WHERE id = CAST(:t AS uuid)"),
+        {"v": volume, "t": str(treino_id)},
+    )
+    return volume
+
+
+def _ritmo_kg_semana(serie: list[tuple[date, float]]) -> float:
+    """Ganho médio de carga por semana entre a primeira e a última sessão."""
+    if len(serie) < 2:
+        return 0.0
+    dias = (serie[-1][0] - serie[0][0]).days
+    return (serie[-1][1] - serie[0][1]) / (dias / 7) if dias > 0 else 0.0
+
+
+async def metas(
+    db: AsyncSession, aluno_id: UUID, melhor: dict[str, float], ritmo: dict[str, float]
+) -> list[dict]:
+    rows = (
+        (
+            await db.execute(
+                text(
+                    "SELECT exercicio, alvo_kg::float AS alvo, prazo, atingida_em "
+                    "FROM metas_exercicio WHERE aluno_id = CAST(:a AS uuid) ORDER BY criada_em"
+                ),
+                {"a": str(aluno_id)},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    hoje = datetime.now(TZ).date()
+    saida = []
+    for m in rows:
+        atual = melhor.get(m["exercicio"], 0.0)
+        atingida = atual >= m["alvo"]
+        atingida_em = m["atingida_em"]
+        if atingida and atingida_em is None:  # registra o dia em que bateu a meta
+            atingida_em = datetime.now(TZ)
+            await db.execute(
+                text(
+                    "UPDATE metas_exercicio SET atingida_em = :q "
+                    "WHERE aluno_id = CAST(:a AS uuid) AND exercicio = :e"
+                ),
+                {"q": atingida_em, "a": str(aluno_id), "e": m["exercicio"]},
+            )
+        falta = max(0.0, m["alvo"] - atual)
+        r = ritmo.get(m["exercicio"], 0.0)
+        previsao = round(falta / (r / 7)) if not atingida and r > 0 else None
+        saida.append(
+            {
+                "exercicio": m["exercicio"],
+                "alvo_kg": m["alvo"],
+                "atual_kg": atual,
+                "pct": min(100, round(atual / m["alvo"] * 100)) if m["alvo"] else 0,
+                "atingida": atingida,
+                "prazo": m["prazo"].isoformat() if m["prazo"] else None,
+                "dias_restantes": (m["prazo"] - hoje).days if m["prazo"] else None,
+                "previsao_dias": previsao,
+            }
+        )
+    return saida
