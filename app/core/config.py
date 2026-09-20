@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     enable_demo_login: bool = False
     demo_academia_id: str = "11111111-1111-1111-1111-111111111111"
     demo_aluno_id: str = "22222222-2222-2222-2222-222222222222"
+    demo_anunciante_id: str = "55555555-5555-5555-5555-555555555555"
 
 
 settings = Settings()

@@ -17,7 +17,7 @@ isolamento numa rota nova.
 
 from collections.abc import AsyncIterator
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,7 @@ from app.core.security import TokenPayload
 from app.db.session import AsyncSessionLocal
 
 _SET_TENANT_SQL = text("SELECT set_config('app.academia_id', :academia_id, true)")
+_SET_ANUNCIANTE_SQL = text("SELECT set_config('app.anunciante_id', :anunciante_id, true)")
 
 
 async def get_tenant_db(
@@ -44,4 +45,18 @@ async def get_tenant_db_for_academia(academia_id: str) -> AsyncIterator[AsyncSes
     async with AsyncSessionLocal() as session:
         async with session.begin():
             await session.execute(_SET_TENANT_SQL, {"academia_id": academia_id})
+            yield session
+
+
+async def get_anunciante_db(
+    current_user: TokenPayload = Depends(get_current_user),
+) -> AsyncIterator[AsyncSession]:
+    """Sessão do painel do anunciante: seta `app.anunciante_id` (o anunciante
+    atua em várias academias, então nenhum `app.academia_id` é definido). Só
+    aceita token do tipo `anunciante`."""
+    if current_user.type != "anunciante":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Token não é de anunciante")
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            await session.execute(_SET_ANUNCIANTE_SQL, {"anunciante_id": current_user.sub})
             yield session
