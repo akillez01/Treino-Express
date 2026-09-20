@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     jwt_expire_minutes_tela: int = 60 * 24 * 30
 
     cors_origins: list[str] = ["http://localhost:3000"]
+    # Aceita também qualquer túnel temporário da Cloudflare e o app na Vercel.
+    cors_origin_regex: str = r"https://.*\.(trycloudflare\.com|vercel\.app)"
+
+    # Login de demonstração: emite token só do aluno demo abaixo, enquanto o
+    # login real não existe. Desligado por padrão; nunca ligar em produção.
+    enable_demo_login: bool = False
+    demo_academia_id: str = "11111111-1111-1111-1111-111111111111"
+    demo_aluno_id: str = "22222222-2222-2222-2222-222222222222"
 
 
 settings = Settings()

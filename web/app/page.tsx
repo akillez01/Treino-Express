@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { gerarTreino, type Treino } from "@/lib/api";
+import Execucao from "./execucao";
 import s from "./page.module.css";
 
 const FOCOS = [
@@ -17,10 +19,27 @@ const qtdExercicios = (min: number) => Math.min(Math.max(Math.round(min / 9), 3)
 export default function Home() {
   const [minutos, setMinutos] = useState(30);
   const [foco, setFoco] = useState<string>("pernas");
+  const [treino, setTreino] = useState<Treino | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const atual = FOCOS.find((f) => f.id === foco)!;
   const data = new Date()
     .toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
     .replace(".", "");
+
+  async function gerar() {
+    setErro(null);
+    setCarregando(true);
+    try {
+      setTreino(await gerarTreino(minutos, foco));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao falar com a API");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  if (treino) return <Execucao treino={treino} onSair={() => setTreino(null)} />;
 
   return (
     <main className={s.page}>
@@ -84,7 +103,10 @@ export default function Home() {
           ))}
         </div>
 
-        <button className={s.cta}>Gerar Treino →</button>
+        <button className={s.cta} onClick={gerar} disabled={carregando}>
+          {carregando ? "Gerando..." : "Gerar Treino →"}
+        </button>
+        {erro && <p className={s.summary}>{erro}</p>}
         <p className={s.summary}>
           {minutos} min · {atual.nome} · {qtdExercicios(minutos)} exercícios
         </p>

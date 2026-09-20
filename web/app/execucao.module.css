@@ -1,0 +1,147 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: 24px 22px 44px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.head > div:nth-child(2) {
+  flex: 1;
+}
+
+.back {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sub {
+  font-size: 11px;
+  color: var(--ink-66);
+}
+
+.pos {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.bars {
+  display: flex;
+  gap: 5px;
+}
+
+.bars span {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+}
+
+.done {
+  background: var(--accent);
+}
+
+.cur {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.todo {
+  background: #22252a;
+}
+
+.card,
+.timer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 20px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ink-66);
+}
+
+.name {
+  margin: 8px 0 12px;
+  font-size: clamp(22px, 5vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.14;
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.series {
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.carga {
+  background: #22252a;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.timer {
+  text-align: center;
+}
+
+.time {
+  margin-top: 8px;
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.erro {
+  margin: 0;
+  color: #ffb9a0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.cta {
+  height: 60px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 17px;
+  font-weight: 800;
+}
