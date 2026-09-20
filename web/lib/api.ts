@@ -307,3 +307,28 @@ export const pedirMusica = (spotifyId: string) =>
     body: JSON.stringify({ spotify_id: spotifyId }),
   });
 export const filaJukebox = () => api<{ fila: ItemFila[] }>("aluno", "/v1/jukebox/fila");
+
+// ---------------- TV (WebSocket) ----------------
+export type TvAuth = { token: string; academia_id: string };
+
+export async function parearTv(codigo: string): Promise<TvAuth> {
+  const res = await fetch(`${API_BASE}/v1/tv/parear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codigo }),
+  });
+  const corpo = (await res.json().catch(() => ({}))) as { access_token?: string; academia_id?: string; detail?: string };
+  if (!res.ok || !corpo.access_token || !corpo.academia_id) throw new ApiError(corpo.detail || "Código inválido");
+  return { token: corpo.access_token, academia_id: corpo.academia_id };
+}
+
+/** Só existe com ENABLE_DEMO_LOGIN no servidor. */
+export async function telaDemo(): Promise<TvAuth> {
+  const res = await fetch(`${API_BASE}/v1/auth/demo?perfil=tela`, { method: "POST" });
+  const corpo = (await res.json().catch(() => ({}))) as { access_token?: string; academia_id?: string };
+  if (!res.ok || !corpo.access_token || !corpo.academia_id) throw new ApiError("Tela demo indisponível neste servidor");
+  return { token: corpo.access_token, academia_id: corpo.academia_id };
+}
+
+export const tvSocketUrl = (a: TvAuth) =>
+  `${API_BASE.replace(/^http/, "ws")}/ws/tv/${a.academia_id}?token=${encodeURIComponent(a.token)}`;

@@ -2,60 +2,60 @@
 
 import Link from "next/link";
 import QRCode from "qrcode";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { parearTv, telaDemo, tvSocketUrl, type TvAuth } from "@/lib/api";
 import s from "./tv.module.css";
 
-// Placeholder até o gateway WebSocket existir (docs/05): hoje a rotação de
-// anúncio e o progresso da música são simulados por um timer local.
-const ADS = [
-  { brand: "Nutri Prime Suplementos", mark: "NP", category: "Suplementos · 300 m da academia", discount: "15%", headline: "OFF em toda a linha de whey", body: "Aproveite o descanso! Ganhe 15% OFF na Loja de Suplementos parceira. Olhe para a TV da academia para escanear o QR Code.", coupon: "PRIME15" },
-  { brand: "Açaí do Ponto", mark: "AP", category: "Alimentação · Mesmo quarteirão", discount: "20%", headline: "OFF na tigela pós-treino", body: "Recupere as energias com 20% OFF em qualquer tigela de 500 ml. Escaneie o QR Code e apresente no caixa até as 22h.", coupon: "ACAI20" },
-  { brand: "Fisio Movimento", mark: "FM", category: "Saúde · Avaliação gratuita", discount: "1ª", headline: "sessão de avaliação sem custo", body: "Dor no joelho ou no ombro? Agende uma avaliação postural gratuita com a clínica parceira da academia.", coupon: "MOVE01" },
-  { brand: "Loja Iron Wear", mark: "IW", category: "Vestuário esportivo", discount: "25%", headline: "OFF na coleção de treino", body: "Camisetas dry-fit e leggings com 25% OFF para alunos. Escaneie o QR Code e receba o cupom no seu celular.", coupon: "IRON25" },
-];
+type Criativo = { marca: string; categoria: string; desconto: string; manchete: string; corpo: string; cupom: string; qr_url: string };
+type Anuncio = { campanha_id: string; nonce: string; duracao_s: number; criativo: Criativo; posicao: { atual: number; total: number }; recebido: number };
+type Faixa = { titulo: string; artista: string; duracao_s: number; posicao_s: number; pedida_por: string; capa_url: string | null; recebido: number };
+type ItemFila = { titulo: string; artista: string; pedida_por: string; duracao: string; capa_url: string | null };
+type Info = { academia: { nome: string; unidade: string | null }; sala: string };
 
-const QUEUE = [
-  { title: "Não Vou Parar", artist: "Bloco do Ritmo", requester: "Marina R.", dur: "3:12" },
-  { title: "Peso Morto", artist: "Trio Cadência", requester: "Diego S.", dur: "2:58" },
-  { title: "Meia Noite no Cardio", artist: "Áurea Base", requester: "Camila T.", dur: "3:44" },
-  { title: "Série Final", artist: "Coletivo Norte", requester: "Rafa L.", dur: "4:02" },
-  { title: "Sem Intervalo", artist: "Mila Duarte", requester: "Júlia P.", dur: "3:21" },
-];
-
-const AD_SECONDS = 24;
-const SONG_TOTAL = 212;
-const ORIGIN = "https://treinoexpress.vercel.app";
-const QUEUE_ROWS = 4;
-
+const STORAGE = "tv_auth";
 const pad = (n: number) => String(n).padStart(2, "0");
-const mmss = (n: number) => `${Math.floor(n / 60)}:${pad(n % 60)}`;
+const mmss = (n: number) => `${Math.floor(n / 60)}:${pad(Math.max(0, Math.floor(n % 60)))}`;
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const iniciais = (nome: string) => nome.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
 function useQr(text: string) {
   const [svg, setSvg] = useState("");
   useEffect(() => {
     let vivo = true;
-    QRCode.toString(text, { type: "svg", margin: 0, color: { dark: "#0d0e10", light: "#0000" } }).then(
-      (r) => vivo && setSvg(r),
-    );
+    if (!text) return;
+    QRCode.toString(text, { type: "svg", margin: 0, color: { dark: "#0d0e10", light: "#0000" } }).then((r) => vivo && setSvg(r));
     return () => {
       vivo = false;
     };
   }, [text]);
-  return svg;
+  return text ? svg : "";
 }
 
 export default function PainelTV() {
-  const [ad, setAd] = useState(0);
-  const [adLeft, setAdLeft] = useState(AD_SECONDS);
-  const [songAt, setSongAt] = useState(74);
-  const [now, setNow] = useState<Date | null>(null);
-  const [scale, setScale] = useState(1);
-  const ref = useRef<HTMLDivElement>(null);
+  const [auth, setAuth] = useState<TvAuth | null | undefined>(undefined);
   const [kiosk, setKiosk] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [now, setNow] = useState<Date | null>(null);
+  const [tick, setTick] = useState(0);
+
+  const [conectado, setConectado] = useState(false);
+  const [info, setInfo] = useState<Info | null>(null);
+  const [pausada, setPausada] = useState(false);
+  const [anuncio, setAnuncio] = useState<Anuncio | null>(null);
+  const [agora, setAgora] = useState<Faixa | null>(null);
+  const [fila, setFila] = useState<ItemFila[]>([]);
+  const [totalFila, setTotalFila] = useState(0);
+  const [origem, setOrigem] = useState("");
 
   useEffect(() => {
     setKiosk(new URLSearchParams(window.location.search).has("kiosk"));
+    setOrigem(window.location.origin);
+    try {
+      const salvo = localStorage.getItem(STORAGE);
+      setAuth(salvo ? (JSON.parse(salvo) as TvAuth) : null);
+    } catch {
+      setAuth(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -69,21 +69,103 @@ export default function PainelTV() {
     setNow(new Date());
     const t = setInterval(() => {
       setNow(new Date());
-      setSongAt((v) => (v + 1) % SONG_TOTAL);
-      setAdLeft((left) => {
-        if (left <= 1) {
-          setAd((a) => (a + 1) % ADS.length);
-          return AD_SECONDS;
-        }
-        return left - 1;
-      });
+      setTick((v) => v + 1);
     }, 1000);
     return () => clearInterval(t);
   }, []);
 
-  const a = ADS[ad];
-  const qrAd = useQr(`${ORIGIN}/r/demo/${a.coupon}`);
-  const qrJuke = useQr(`${ORIGIN}/jukebox`);
+  const sair = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE);
+    } catch {
+      /* sem storage */
+    }
+    setAuth(null);
+    setConectado(false);
+  }, []);
+
+  // Conexão com reconexão automática (backoff até 10 s). Depois de várias
+  // recusas seguidas o token deixou de valer: volta para o pareamento.
+  const falhas = useRef(0);
+  useEffect(() => {
+    if (!auth) return;
+    let fechado = false;
+    let ws: WebSocket | null = null;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const abrir = () => {
+      ws = new WebSocket(tvSocketUrl(auth));
+      let abriu = false;
+      ws.onopen = () => {
+        abriu = true;
+        falhas.current = 0;
+        setConectado(true);
+      };
+      ws.onmessage = (m) => {
+        const ev = JSON.parse(m.data as string);
+        const t = Date.now();
+        switch (ev.type) {
+          case "ping":
+            ws?.send(JSON.stringify({ type: "pong" }));
+            break;
+          case "tv.info":
+            setInfo({ academia: ev.academia, sala: ev.sala });
+            break;
+          case "screen.pause":
+            setPausada(!!ev.pausada);
+            break;
+          case "ad.show":
+            setAnuncio({ ...ev, recebido: t });
+            ws?.send(JSON.stringify({ type: "ad.impression", campanha_id: ev.campanha_id, nonce: ev.nonce }));
+            break;
+          case "jukebox.now":
+            setAgora(ev.faixa ? { ...ev.faixa, recebido: t } : null);
+            break;
+          case "jukebox.queue":
+            setFila(ev.fila);
+            setTotalFila(ev.total);
+            break;
+        }
+      };
+      ws.onclose = () => {
+        setConectado(false);
+        if (fechado) return;
+        if (!abriu && ++falhas.current >= 4) {
+          sair();
+          return;
+        }
+        timer = setTimeout(abrir, Math.min(1000 * 2 ** Math.min(falhas.current, 4), 10000));
+      };
+    };
+    abrir();
+    return () => {
+      fechado = true;
+      clearTimeout(timer);
+      ws?.close();
+    };
+  }, [auth, sair]);
+
+  const qrAd = useQr(anuncio?.criativo.qr_url ?? "");
+  const qrJuke = useQr(origem ? `${origem}/aluno/jukebox` : "");
+
+  if (auth === undefined) return <div className={s.viewport} />;
+  if (auth === null)
+    return (
+      <Pareamento
+        kiosk={kiosk}
+        onOk={(a) => {
+          localStorage.setItem(STORAGE, JSON.stringify(a));
+          falhas.current = 0;
+          setAuth(a);
+        }}
+      />
+    );
+
+  void tick;
+  const decorrido = anuncio ? (Date.now() - anuncio.recebido) / 1000 : 0;
+  const restanteAd = anuncio ? Math.max(0, Math.ceil(anuncio.duracao_s - decorrido)) : 0;
+  const posMusica = agora ? Math.min(agora.duracao_s, agora.posicao_s + (Date.now() - agora.recebido) / 1000) : 0;
+  const fila4 = fila.slice(0, 4);
 
   return (
     <div className={s.viewport}>
@@ -91,19 +173,20 @@ export default function PainelTV() {
         <nav className={s.exit} aria-label="Sair da TV">
           <Link href="/">← Início</Link>
           <Link href="/academia/telas">Telas</Link>
+          <button onClick={sair}>Desparear</button>
         </nav>
       )}
-      <div ref={ref} className={s.stage} style={{ transform: `scale(${scale})` }}>
+      <div className={s.stage} style={{ transform: `scale(${scale})` }}>
         <div className={s.bar}>
-          <div className={s.logo}>IF</div>
+          <div className={s.logo}>{info ? iniciais(info.academia.nome) : "TE"}</div>
           <div>
-            <div className={s.gym}>Iron Factory</div>
-            <div className={s.unit}>Unidade Vila Prudente · Sala de musculação</div>
+            <div className={s.gym}>{info?.academia.nome ?? "Treino Express"}</div>
+            <div className={s.unit}>{info ? [info.academia.unidade, info.sala].filter(Boolean).join(" · ") : "Conectando..."}</div>
           </div>
           <div className={s.grow} />
-          <div className={s.live}>
+          <div className={`${s.live} ${conectado ? "" : s.liveOff}`}>
             <span className={s.liveDot} />
-            AO VIVO
+            {conectado ? "AO VIVO" : "RECONECTANDO"}
           </div>
           <div className={s.clock}>
             <div className={s.time}>{now ? `${pad(now.getHours())}:${pad(now.getMinutes())}` : "--:--"}</div>
@@ -118,45 +201,53 @@ export default function PainelTV() {
                 <span className={s.adDot} />
                 Oferta do parceiro
               </div>
-              <div className={s.count}>
-                Anúncio {ad + 1} de {ADS.length}
-              </div>
+              {anuncio && (
+                <div className={s.count}>
+                  Anúncio {anuncio.posicao.atual} de {anuncio.posicao.total}
+                </div>
+              )}
             </div>
 
-            <div className={s.adCard}>
-              <div className={s.brand}>
-                <div className={s.mark}>{a.mark}</div>
-                <div>
-                  <div className={s.brandName}>{a.brand}</div>
-                  <div className={s.brandCat}>{a.category}</div>
-                </div>
+            {pausada ? (
+              <div className={`${s.adCard} ${s.vazioCard}`}>
+                <div className={s.vazioTitulo}>Exibição pausada</div>
+                <div className={s.vazioTexto}>A academia pausou esta tela. Ela volta sozinha quando for retomada.</div>
               </div>
-              <div className={s.offer}>
-                <div className={s.discount}>{a.discount}</div>
-                <div className={s.headline}>{a.headline}</div>
-              </div>
-              <div className={s.copy}>{a.body}</div>
-              <div className={s.spacer} />
-              <div className={s.redeem}>
-                <div className={s.qrBig} dangerouslySetInnerHTML={{ __html: qrAd }} />
-                <div>
-                  <div className={s.redeemTitle}>Escaneie para resgatar</div>
-                  <div className={s.redeemSub}>
-                    Válido hoje na {a.brand} · Cupom {a.coupon}
-                  </div>
-                  <div className={s.swap}>
-                    <span className={s.swapDot} />
-                    Troca em 00:{pad(adLeft)}
+            ) : anuncio ? (
+              <div className={s.adCard}>
+                <div className={s.brand}>
+                  <div className={s.mark}>{iniciais(anuncio.criativo.marca)}</div>
+                  <div>
+                    <div className={s.brandName}>{anuncio.criativo.marca}</div>
+                    <div className={s.brandCat}>{anuncio.criativo.categoria}</div>
                   </div>
                 </div>
+                <div className={s.offer}>
+                  <div className={s.discount}>{anuncio.criativo.desconto}</div>
+                  <div className={s.headline}>{anuncio.criativo.manchete}</div>
+                </div>
+                <div className={s.copy}>{anuncio.criativo.corpo}</div>
+                <div className={s.spacer} />
+                <div className={s.redeem}>
+                  <div className={s.qrBig} dangerouslySetInnerHTML={{ __html: qrAd }} />
+                  <div>
+                    <div className={s.redeemTitle}>Escaneie para resgatar</div>
+                    <div className={s.redeemSub}>
+                      Válido hoje na {anuncio.criativo.marca} · Cupom {anuncio.criativo.cupom}
+                    </div>
+                    <div className={s.swap}>
+                      <span className={s.swapDot} />
+                      Troca em 00:{pad(restanteAd)}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div className={s.adBars}>
-              {ADS.map((x, i) => (
-                <span key={x.coupon} className={i === ad ? s.on : undefined} />
-              ))}
-            </div>
+            ) : (
+              <div className={`${s.adCard} ${s.vazioCard}`}>
+                <div className={s.vazioTitulo}>Aguardando anúncios</div>
+                <div className={s.vazioTexto}>Nenhuma campanha ativa neste horário para esta academia.</div>
+              </div>
+            )}
           </section>
 
           <section className={s.right}>
@@ -169,41 +260,59 @@ export default function PainelTV() {
                 </span>
                 Jukebox
               </div>
-              <div className={s.count}>{QUEUE.length} pedidos na fila</div>
+              <div className={s.count}>{totalFila} pedidos na fila</div>
             </div>
 
             <div className={s.now}>
-              <div className={s.nowRow}>
-                <div className={s.cover}>capa do álbum</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className={s.label}>Tocando agora</div>
-                  <div className={s.song}>Ritmo de Ferro</div>
-                  <div className={s.artist}>Banda Alta Carga</div>
+              {agora ? (
+                <>
+                  <div className={s.nowRow}>
+                    {agora.capa_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className={s.cover} src={agora.capa_url} alt="" />
+                    ) : (
+                      <div className={s.cover}>capa do álbum</div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className={s.label}>Tocando agora</div>
+                      <div className={s.song}>{agora.titulo}</div>
+                      <div className={s.artist}>{agora.artista}</div>
+                    </div>
+                  </div>
+                  <div className={s.progress}>
+                    <div className={s.track}>
+                      <div className={s.fill} style={{ width: `${(posMusica / agora.duracao_s) * 100}%` }} />
+                    </div>
+                    <div className={s.times}>
+                      <span>{mmss(posMusica)}</span>
+                      <span>Pedida por {agora.pedida_por}</span>
+                      <span>{mmss(agora.duracao_s)}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className={s.nowRow}>
+                  <div className={s.cover}>♪</div>
+                  <div>
+                    <div className={s.label}>Tocando agora</div>
+                    <div className={s.song}>Nenhuma música</div>
+                    <div className={s.artist}>Peça a sua pelo QR Code abaixo</div>
+                  </div>
                 </div>
-              </div>
-              <div className={s.progress}>
-                <div className={s.track}>
-                  <div className={s.fill} style={{ width: `${(songAt / SONG_TOTAL) * 100}%` }} />
-                </div>
-                <div className={s.times}>
-                  <span>{mmss(songAt)}</span>
-                  <span>Pedida por Lucas M.</span>
-                  <span>{mmss(SONG_TOTAL)}</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className={`${s.label} ${s.queueLabel}`}>Na fila</div>
             <div className={s.queue}>
-              {QUEUE.slice(0, QUEUE_ROWS).map((t, i) => (
-                <div key={t.title} className={s.item}>
+              {fila4.map((t, i) => (
+                <div key={t.titulo + i} className={s.item}>
                   <div className={s.pos}>{pad(i + 1)}</div>
                   <div className={s.itemMain}>
-                    <div className={s.itemTitle}>{t.title}</div>
-                    <div className={s.itemArtist}>{t.artist}</div>
+                    <div className={s.itemTitle}>{t.titulo}</div>
+                    <div className={s.itemArtist}>{t.artista}</div>
                   </div>
-                  <div className={s.who}>{t.requester}</div>
-                  <div className={s.dur}>{t.dur}</div>
+                  <div className={s.who}>{t.pedida_por}</div>
+                  <div className={s.dur}>{t.duracao}</div>
                 </div>
               ))}
             </div>
@@ -219,5 +328,74 @@ export default function PainelTV() {
         </div>
       </div>
     </div>
+  );
+}
+
+function Pareamento({ kiosk, onOk }: { kiosk: boolean; onOk: (a: TvAuth) => void }) {
+  const [codigo, setCodigo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErro(null);
+    try {
+      onOk(await parearTv(codigo.trim()));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Falha ao parear");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function demo() {
+    setBusy(true);
+    setErro(null);
+    try {
+      onOk(await telaDemo());
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Falha");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("demo")) void demo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <main className={s.pair}>
+      {!kiosk && (
+        <Link href="/" className={s.pairBack}>
+          ← Início
+        </Link>
+      )}
+      <form className={s.pairCard} onSubmit={enviar}>
+        <div className={s.pairLogo}>TE</div>
+        <h1 className={s.pairTitle}>Parear esta TV</h1>
+        <p className={s.pairText}>
+          No painel da academia, abra <b>Telas → Adicionar tela</b>, gere o código e digite-o aqui.
+        </p>
+        <input
+          className={s.pairInput}
+          value={codigo}
+          onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+          placeholder="ABC-123"
+          maxLength={7}
+          autoFocus
+          aria-label="Código de pareamento"
+        />
+        {erro && <div className={s.pairErro}>{erro}</div>}
+        <button className={s.pairBtn} disabled={busy || codigo.trim().length < 6}>
+          {busy ? "Conectando..." : "Parear"}
+        </button>
+        <button type="button" className={s.pairGhost} onClick={demo} disabled={busy}>
+          Usar tela de demonstração
+        </button>
+      </form>
+    </main>
   );
 }

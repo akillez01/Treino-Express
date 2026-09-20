@@ -116,13 +116,13 @@ SEED = [
     f"""
     INSERT INTO campanhas_ads (id, anunciante_id, academia_id, nome, desconto_rotulo, manchete, corpo, cupom,
                                status, inicio, hora_inicio, hora_fim, orcamento_centavos, cpm_centavos) VALUES
-      ('c1000000-0000-0000-0000-000000000001', '{NUTRI}', '{IRON}', '15% OFF linha de whey', '15%', 'OFF em toda a linha de whey', 'Aproveite o descanso! Ganhe 15% OFF na loja parceira.', 'PRIME15', 'ativa', CURRENT_DATE - 60, '06:00', '22:00', 400000, 10),
-      ('c1000000-0000-0000-0000-000000000002', '{NUTRI}', '{IRON}', 'Combo creatina + coqueteleira', '10%', 'OFF no combo', 'Combo creatina e coqueteleira com desconto.', 'COMBO10', 'ativa', CURRENT_DATE - 45, '17:00', '21:00', 200000, 10),
-      ('c1000000-0000-0000-0000-000000000003', '{NUTRI}', '{POWER}', 'Frete grátis acima de R$ 150', 'Frete', 'grátis acima de R$ 150', 'Frete grátis em compras acima de R$ 150.', 'FRETE150', 'pausada', CURRENT_DATE - 40, '06:00', '22:00', 200000, 10),
-      ('c1000000-0000-0000-0000-000000000004', '{NUTRI}', '{STUDIO}', 'Pré-treino 20% OFF', '20%', 'OFF no pré-treino', 'Pré-treino com 20% OFF para alunos.', 'PRE20', 'ativa', CURRENT_DATE - 30, '06:00', '10:00', 150000, 10),
-      ('c1000000-0000-0000-0000-000000000005', '{ACAI}', '{IRON}', 'Tigela pós-treino', '20%', 'OFF na tigela pós-treino', 'Recupere as energias com 20% OFF.', 'ACAI20', 'ativa', CURRENT_DATE - 30, '06:00', '22:00', 150000, 10),
-      ('c1000000-0000-0000-0000-000000000006', '{FISIO}', '{IRON}', 'Avaliação postural', '1ª', 'sessão de avaliação sem custo', 'Agende uma avaliação postural gratuita.', 'MOVE01', 'ativa', CURRENT_DATE - 30, '06:00', '22:00', 100000, 10),
-      ('c1000000-0000-0000-0000-000000000007', '{IRONWEAR}', '{IRON}', 'Coleção de treino', '25%', 'OFF na coleção de treino', 'Camisetas dry-fit e leggings com 25% OFF.', 'IRON25', 'ativa', CURRENT_DATE - 30, '06:00', '22:00', 200000, 10)
+      ('c1000000-0000-0000-0000-000000000001', '{NUTRI}', '{IRON}', '15% OFF linha de whey', '15%', 'OFF em toda a linha de whey', 'Aproveite o descanso! Ganhe 15% OFF na loja parceira.', 'PRIME15', 'ativa', CURRENT_DATE - 60, '06:00', '22:00', 400000, 100000),
+      ('c1000000-0000-0000-0000-000000000002', '{NUTRI}', '{IRON}', 'Combo creatina + coqueteleira', '10%', 'OFF no combo', 'Combo creatina e coqueteleira com desconto.', 'COMBO10', 'ativa', CURRENT_DATE - 45, '17:00', '21:00', 200000, 100000),
+      ('c1000000-0000-0000-0000-000000000003', '{NUTRI}', '{POWER}', 'Frete grátis acima de R$ 150', 'Frete', 'grátis acima de R$ 150', 'Frete grátis em compras acima de R$ 150.', 'FRETE150', 'pausada', CURRENT_DATE - 40, '06:00', '22:00', 200000, 100000),
+      ('c1000000-0000-0000-0000-000000000004', '{NUTRI}', '{STUDIO}', 'Pré-treino 20% OFF', '20%', 'OFF no pré-treino', 'Pré-treino com 20% OFF para alunos.', 'PRE20', 'ativa', CURRENT_DATE - 30, '06:00', '10:00', 150000, 100000),
+      ('c1000000-0000-0000-0000-000000000005', '{ACAI}', '{IRON}', 'Tigela pós-treino', '20%', 'OFF na tigela pós-treino', 'Recupere as energias com 20% OFF.', 'ACAI20', 'ativa', CURRENT_DATE - 30, '06:00', '22:00', 150000, 100000),
+      ('c1000000-0000-0000-0000-000000000006', '{FISIO}', '{IRON}', 'Avaliação postural', '1ª', 'sessão de avaliação sem custo', 'Agende uma avaliação postural gratuita.', 'MOVE01', 'ativa', CURRENT_DATE - 30, '06:00', '22:00', 100000, 100000),
+      ('c1000000-0000-0000-0000-000000000007', '{IRONWEAR}', '{IRON}', 'Coleção de treino', '25%', 'OFF na coleção de treino', 'Camisetas dry-fit e leggings com 25% OFF.', 'IRON25', 'ativa', CURRENT_DATE - 30, '06:00', '22:00', 200000, 100000)
     """,
     # --- impressões: 30 dias, mais volume no fim do dia
     f"""

@@ -7,13 +7,14 @@ from app.api.deps import get_current_aluno, get_tenant_db
 from app.core.redis import get_redis
 from app.core.security import TokenPayload
 from app.schemas.treino import (
+    AnuncioStubOut,
     DescansoOut,
     ExercicioConcluidoOut,
     GerarTreinoIn,
     IniciarDescansoIn,
     TreinoOut,
 )
-from app.services import ads_service, treino_service
+from app.services import ads_service, treino_service, tv_events
 
 router = APIRouter(prefix="/treinos", tags=["treinos"])
 
@@ -43,8 +44,23 @@ async def iniciar_descanso_rota(
     descanso = await treino_service.registrar_descanso(
         db, academia_id=aluno.academia_id, treino_id=treino_id, ordem=body.ordem
     )
-    campanha = await ads_service.escolher_anuncio(get_redis(), academia_id=aluno.academia_id)
-    # TODO(fase2): publicar `ad.show` em chan:tv:{academia_id} via gateway WebSocket.
+    redis = get_redis()
+    ev = await ads_service.proximo_anuncio(db, redis, aluno.academia_id)
+    campanha = None
+    if ev:
+        # Aluno em descanso: a TV troca para este anúncio agora (docs/01, passo 4).
+        await tv_events.publicar(redis, aluno.academia_id, ev)
+        c = ev["criativo"]
+        campanha = AnuncioStubOut(
+            campanha_id=ev["campanha_id"],
+            marca=c["marca"],
+            categoria=c["categoria"],
+            desconto=c["desconto"],
+            manchete=c["manchete"],
+            corpo=c["corpo"],
+            cupom=c["cupom"],
+            qr_url=c["qr_url"],
+        )
     return DescansoOut(descanso_segundos=descanso.duracao_segundos, campanha=campanha)
 
 

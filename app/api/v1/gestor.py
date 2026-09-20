@@ -12,7 +12,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_gestor, get_tenant_db
+from app.core.redis import get_redis
 from app.core.security import TokenPayload
+from app.services import jukebox_player, tv_events
 
 router = APIRouter(prefix="/academia", tags=["academia"])
 
@@ -90,7 +92,8 @@ async def resumo(
     telas = _rows(
         await db.execute(
             text(
-                "SELECT id::text, sala, status::text, resolucao, ultimo_heartbeat "
+                "SELECT id::text, sala, "
+                + "CASE WHEN status = 'online' AND (ultimo_heartbeat IS NULL OR ultimo_heartbeat < now() - interval '90 seconds') THEN 'offline' ELSE status::text END AS status, resolucao, ultimo_heartbeat "
                 "FROM telas WHERE pareada_em IS NOT NULL ORDER BY sala"
             )
         )
@@ -282,7 +285,7 @@ async def _telas(db: AsyncSession) -> list[dict]:
         await db.execute(
             text(
                 """
-                SELECT t.id::text, t.sala, t.status::text AS status, t.resolucao, t.pareada_em,
+                SELECT t.id::text, t.sala, CASE WHEN t.status = 'online' AND (t.ultimo_heartbeat IS NULL OR t.ultimo_heartbeat < now() - interval '90 seconds') THEN 'offline' ELSE t.status::text END AS status, t.resolucao, t.pareada_em,
                        t.ultimo_heartbeat, t.codigo_pareamento,
                        (SELECT COUNT(*) FROM scans s JOIN impressoes i ON i.id = s.impressao_id
                          WHERE i.tela_id = t.id AND s.escaneado_em >= date_trunc('month', now())) AS qr_mes
@@ -322,7 +325,7 @@ class Tela(BaseModel):
 async def pausar(
     tela_id: uuid.UUID,
     db: AsyncSession = Depends(get_tenant_db),
-    _: TokenPayload = Depends(get_current_gestor),
+    gestor: TokenPayload = Depends(get_current_gestor),
 ):
     r = await db.execute(
         text(
@@ -337,6 +340,11 @@ async def pausar(
     row = r.mappings().first()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tela não encontrada")
+    await tv_events.publicar(
+        get_redis(),
+        gestor.academia_id,
+        {"type": "screen.pause", "tela_id": str(tela_id), "pausada": row["status"] == "pausada"},
+    )
     return Tela(**row)
 
 
@@ -363,3 +371,12 @@ async def pareamento(
         {"codigo": codigo},
     )
     return Pareamento(id=r.scalar_one(), codigo=codigo)
+
+
+@router.post("/jukebox/proxima", status_code=204)
+async def proxima_faixa(
+    db: AsyncSession = Depends(get_tenant_db),
+    gestor: TokenPayload = Depends(get_current_gestor),
+):
+    """Pula para a próxima faixa da fila (atualiza a TV na hora)."""
+    await jukebox_player.avancar(db, get_redis(), gestor.academia_id)

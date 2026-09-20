@@ -10,7 +10,13 @@ Design e contratos de referência: `../treino-express-handoff/`.
 - Isolamento por tenant via Row Level Security
 - Rotas do app do aluno: `POST /v1/treinos/gerar`, `/v1/treinos/{id}/descanso`, `/v1/treinos/{id}/exercicio/{ordem}/concluir`
 
-Ainda não existem: gateway WebSocket, workers de anúncio, Stripe Connect.
+Ainda não existem: workers de anúncio (pacing por verba e cobrança), Stripe Connect.
+
+## TV em tempo real (WebSocket)
+
+`WSS /ws/tv/{academia_id}?token=<jwt da tela>`: anúncio (`ad.show`), jukebox (`jukebox.now`/`jukebox.queue`), `screen.pause` e heartbeat. A tela confirma cada exibição (`ad.impression`) — só assim a impressão conta. O QR do anúncio aponta para `/r/{campanha}/{nonce}` (nonce de uso único), que registra o scan e leva ao cupom.
+
+Pareamento: painel da academia > Telas > gerar código; na TV, `/tv` e digite o código (ou `/tv?demo` com o login demo ligado).
 
 ## Spotify (jukebox)
 

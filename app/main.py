@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import ws
 from app.api.v1.router import api_router
+from app.api.v1.tv import scan_router
 from app.core.config import settings
 
 app = FastAPI(title="Treino Express API")
@@ -16,6 +18,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(scan_router)
+app.include_router(ws.router)
 
 
 @app.get("/health")

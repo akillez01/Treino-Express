@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import anunciante, auth, gestor
+from app.api.v1 import anunciante, auth, gestor, tv
 from app.api.v1.aluno import jukebox as aluno_jukebox
 from app.api.v1.aluno import treinos as aluno_treinos
 
@@ -10,3 +10,4 @@ api_router.include_router(aluno_treinos.router)
 api_router.include_router(aluno_jukebox.router)
 api_router.include_router(gestor.router)
 api_router.include_router(anunciante.router)
+api_router.include_router(tv.router)

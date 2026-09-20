@@ -11,6 +11,7 @@ from app.api.deps import get_current_aluno, get_tenant_db
 from app.core.redis import get_redis
 from app.core.security import TokenPayload
 from app.integrations.spotify import client as spotify
+from app.services import jukebox_player, tv_events
 
 router = APIRouter(prefix="/jukebox", tags=["jukebox"])
 
@@ -119,7 +120,9 @@ async def pedir(
     # Fila em tempo real (docs/05): sorted set por timestamp. Falha do Redis não
     # derruba o pedido — o Postgres é a fonte de verdade.
     try:
-        await get_redis().zadd(f"jukebox:{aluno.academia_id}", {pedido_id: time.time()})
+        redis = get_redis()
+        await redis.zadd(f"jukebox:{aluno.academia_id}", {pedido_id: time.time()})
+        await tv_events.publicar(redis, aluno.academia_id, await jukebox_player.evento_fila(db))
     except Exception:
         pass
 

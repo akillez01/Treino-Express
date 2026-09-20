@@ -16,6 +16,7 @@ isolamento numa rota nova.
 """
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import text
@@ -59,4 +60,14 @@ async def get_anunciante_db(
     async with AsyncSessionLocal() as session:
         async with session.begin():
             await session.execute(_SET_ANUNCIANTE_SQL, {"anunciante_id": current_user.sub})
+            yield session
+
+
+@asynccontextmanager
+async def tenant_session(academia_id: str) -> AsyncIterator[AsyncSession]:
+    """Sessão tenant-scoped para código fora de uma request (WebSocket, tarefas).
+    Cada bloco `async with` é uma transação própria, com o tenant já definido."""
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            await session.execute(_SET_TENANT_SQL, {"academia_id": str(academia_id)})
             yield session

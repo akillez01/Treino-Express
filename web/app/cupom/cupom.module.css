@@ -1,0 +1,104 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  padding: 28px 24px;
+  border-radius: 28px;
+  background: linear-gradient(150deg, rgba(255, 107, 44, 0.2) 0%, rgba(255, 107, 44, 0.06) 48%, #15171a 100%);
+  border: 1px solid rgba(255, 107, 44, 0.32);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffa675;
+}
+
+.brand {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.offer {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.discount {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+  color: #ff6b2c;
+}
+
+.headline {
+  padding-top: 4px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-66);
+}
+
+.label {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-66);
+}
+
+.code {
+  padding: 16px;
+  border-radius: 16px;
+  background: #f4f5f3;
+  color: #0d0e10;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink-66);
+}
+
+.link {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}

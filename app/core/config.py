@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     demo_academia_id: str = "11111111-1111-1111-1111-111111111111"
     demo_aluno_id: str = "22222222-2222-2222-2222-222222222222"
     demo_anunciante_id: str = "55555555-5555-5555-5555-555555555555"
+    demo_tela_id: str = "a1000000-0000-0000-0000-000000000001"
+
+    # Endereço público da API (vai dentro do QR) e do frontend (destino do scan).
+    public_api_url: str = "http://127.0.0.1:8000"
+    public_web_url: str = "http://127.0.0.1:3000"
 
     # Spotify Web API (app em developer.spotify.com/dashboard). Fluxo Client
     # Credentials: só busca de faixas e metadados, sem login do aluno no Spotify.

@@ -582,3 +582,154 @@
   font-weight: 700;
   text-decoration: none;
 }
+
+.liveOff {
+  color: #ffb9a0;
+  background: rgba(255, 107, 44, 0.12);
+  border-color: rgba(255, 107, 44, 0.35);
+}
+
+.liveOff .liveDot {
+  background: #ff6b2c;
+}
+
+.exit button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(16, 18, 22, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cover {
+  object-fit: cover;
+}
+
+.vazioCard {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.vazioTitulo {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.vazioTexto {
+  max-width: 520px;
+  font-size: 22px;
+  line-height: 1.45;
+  color: var(--ink-66);
+}
+
+/* pareamento (tela cheia comum, não usa o canvas 1920x1080) */
+.pair {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 20px;
+  background: #07080a;
+}
+
+.pairBack {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-66);
+  text-decoration: none;
+}
+
+.pairCard {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 32px 26px;
+  border-radius: 26px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.pairLogo {
+  align-self: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  background: var(--accent);
+  color: var(--accent-on);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.pairTitle {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.pairText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-66);
+}
+
+.pairInput {
+  height: 60px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.pairInput:focus {
+  outline: 2px solid var(--accent);
+}
+
+.pairErro {
+  font-size: 13px;
+  color: #ffb9a0;
+}
+
+.pairBtn {
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.pairBtn:disabled {
+  opacity: 0.5;
+}
+
+.pairGhost {
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-66);
+  font-size: 13px;
+  font-weight: 700;
+}
