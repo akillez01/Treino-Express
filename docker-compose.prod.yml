@@ -1,0 +1,67 @@
+# Produção: API + Postgres + Redis + túnel Cloudflare, tudo num servidor só.
+# Nenhuma porta é publicada no host — o único caminho de entrada é o túnel.
+#
+#   cp .env.prod.example .env.prod   # preencha as senhas e o token do túnel
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: treino
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: treino_express
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U treino -d treino_express"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: prod
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      # Runtime: role sem superusuário (sujeita a RLS); a migration 0002 aplica
+      # a senha de APP_DB_PASSWORD.
+      DATABASE_URL: postgresql+asyncpg://treino_app:${APP_DB_PASSWORD}@postgres:5432/treino_express
+      MIGRATIONS_DATABASE_URL: postgresql+asyncpg://treino:${POSTGRES_ADMIN_PASSWORD}@postgres:5432/treino_express
+      REDIS_URL: redis://redis:6379/0
+    command: >
+      sh -c "uv run --no-dev alembic upgrade head &&
+             uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000
+             --proxy-headers --forwarded-allow-ips='*'"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:
