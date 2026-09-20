@@ -2,12 +2,18 @@ from datetime import UTC
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.exercicio import Exercicio
 from app.models.treino import Descanso, Treino, TreinoExercicio
-from app.schemas.treino import ExercicioConcluidoOut, ExercicioOut, TreinoOut
+from app.schemas.treino import (
+    AjusteIn,
+    AlternativaOut,
+    ExercicioConcluidoOut,
+    ExercicioOut,
+    TreinoOut,
+)
 
 DESCANSO_PADRAO_SEGUNDOS = 59
 
@@ -39,38 +45,53 @@ async def gerar_treino(
         academia_id=academia_id, aluno_id=aluno_id, minutos_disponiveis=minutos, foco=foco
     )
     db.add(treino)
-    await (
-        db.flush()
-    )  # popula treino.id sem commitar (commit é feito por get_tenant_db no fim do request)
+    await db.flush()  # popula treino.id sem commitar (commit é feito por get_tenant_db)
 
-    treino_exercicios: list[TreinoExercicio] = []
     for ordem, exercicio in enumerate(exercicios_catalogo, start=1):
-        te = TreinoExercicio(
-            treino_id=treino.id,
-            exercicio_id=exercicio.id,
-            ordem=ordem,
-            series=exercicio.series_padrao,
-            carga=exercicio.carga_sugerida,
+        db.add(
+            TreinoExercicio(
+                treino_id=treino.id,
+                exercicio_id=exercicio.id,
+                ordem=ordem,
+                series=exercicio.series_padrao,
+                carga=exercicio.carga_sugerida,
+            )
         )
-        db.add(te)
-        treino_exercicios.append(te)
     await db.flush()
+    return await montar_treino(db, treino.id)
 
+
+async def montar_treino(db: AsyncSession, treino_id: UUID) -> TreinoOut:
+    treino = await db.get(Treino, treino_id)
+    if treino is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Treino não encontrado")
+    rows = (
+        await db.execute(
+            select(TreinoExercicio, Exercicio)
+            .join(Exercicio, Exercicio.id == TreinoExercicio.exercicio_id)
+            .where(TreinoExercicio.treino_id == treino_id)
+            .order_by(TreinoExercicio.ordem)
+        )
+    ).all()
+    exercicios = [
+        ExercicioOut(
+            ordem=te.ordem,
+            nome=ex.nome,
+            series=te.series,
+            carga=te.carga,
+            imagem_url=ex.imagem_url,
+            descanso_segundos=te.descanso_segundos or ex.descanso_segundos,
+        )
+        for te, ex in rows
+    ]
     return TreinoOut(
         treino_id=treino.id,
-        minutos=minutos,
-        foco=foco,
-        exercicios=[
-            ExercicioOut(
-                ordem=te.ordem,
-                nome=ex.nome,
-                series=te.series,
-                carga=te.carga,
-                imagem_url=ex.imagem_url,
-            )
-            for te, ex in zip(treino_exercicios, exercicios_catalogo, strict=True)
-        ],
-        descanso_segundos=exercicios_catalogo[0].descanso_segundos or DESCANSO_PADRAO_SEGUNDOS,
+        minutos=treino.minutos_disponiveis,
+        foco=treino.foco,
+        exercicios=exercicios,
+        descanso_segundos=exercicios[0].descanso_segundos
+        if exercicios
+        else DESCANSO_PADRAO_SEGUNDOS,
     )
 
 
@@ -95,7 +116,9 @@ async def registrar_descanso(
 ) -> Descanso:
     te = await _buscar_treino_exercicio(db, treino_id, ordem)
     exercicio = await db.get(Exercicio, te.exercicio_id)
-    duracao = exercicio.descanso_segundos if exercicio else DESCANSO_PADRAO_SEGUNDOS
+    duracao = te.descanso_segundos or (
+        exercicio.descanso_segundos if exercicio else DESCANSO_PADRAO_SEGUNDOS
+    )
 
     descanso = Descanso(
         academia_id=academia_id,
@@ -135,3 +158,96 @@ async def concluir_exercicio(
         proximo_ordem=proximo_ordem,
         treino_concluido=proximo_ordem is None,
     )
+
+
+async def ajustar_exercicio(
+    db: AsyncSession, *, treino_id: UUID, ordem: int, ajuste: AjusteIn
+) -> TreinoOut:
+    te = await _buscar_treino_exercicio(db, treino_id, ordem)
+    if ajuste.series is not None:
+        te.series = ajuste.series.strip()
+    if ajuste.carga is not None:
+        te.carga = ajuste.carga.strip() or None
+    if ajuste.descanso_segundos is not None:
+        if ajuste.aplicar_descanso_a_todos:
+            await db.execute(
+                update(TreinoExercicio)
+                .where(TreinoExercicio.treino_id == treino_id)
+                .values(descanso_segundos=ajuste.descanso_segundos)
+            )
+        else:
+            te.descanso_segundos = ajuste.descanso_segundos
+    await db.flush()
+    return await montar_treino(db, treino_id)
+
+
+async def alternativas(db: AsyncSession, *, treino_id: UUID, ordem: int) -> list[AlternativaOut]:
+    """Exercícios do mesmo foco que ainda não estão neste treino."""
+    await _buscar_treino_exercicio(db, treino_id, ordem)
+    treino = await db.get(Treino, treino_id)
+    no_treino = select(TreinoExercicio.exercicio_id).where(TreinoExercicio.treino_id == treino_id)
+    rows = (
+        await db.execute(
+            select(Exercicio)
+            .where(
+                Exercicio.foco == treino.foco,
+                Exercicio.ativo.is_(True),
+                Exercicio.id.not_in(no_treino),
+            )
+            .order_by(Exercicio.ordem_preferencial, Exercicio.nome)
+        )
+    ).scalars()
+    return [
+        AlternativaOut(
+            exercicio_id=e.id,
+            nome=e.nome,
+            series=e.series_padrao,
+            carga=e.carga_sugerida,
+            imagem_url=e.imagem_url,
+            descanso_segundos=e.descanso_segundos,
+        )
+        for e in rows
+    ]
+
+
+async def trocar_exercicio(
+    db: AsyncSession, *, treino_id: UUID, ordem: int, exercicio_id: UUID
+) -> TreinoOut:
+    te = await _buscar_treino_exercicio(db, treino_id, ordem)
+    treino = await db.get(Treino, treino_id)
+    novo = await db.get(Exercicio, exercicio_id)  # RLS: só catálogo global ou da academia
+    if novo is None or not novo.ativo or novo.foco != treino.foco:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Exercício inválido para este foco"
+        )
+    repetido = await db.execute(
+        select(TreinoExercicio.id).where(
+            TreinoExercicio.treino_id == treino_id, TreinoExercicio.exercicio_id == exercicio_id
+        )
+    )
+    if repetido.first() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este exercício já está no treino")
+    te.exercicio_id = novo.id
+    te.series = novo.series_padrao
+    te.carga = novo.carga_sugerida
+    te.descanso_segundos = None
+    te.concluido_em = None
+    await db.flush()
+    return await montar_treino(db, treino_id)
+
+
+async def remover_exercicio(db: AsyncSession, *, treino_id: UUID, ordem: int) -> TreinoOut:
+    te = await _buscar_treino_exercicio(db, treino_id, ordem)
+    total = (
+        await db.execute(
+            select(func.count())
+            .select_from(TreinoExercicio)
+            .where(TreinoExercicio.treino_id == treino_id)
+        )
+    ).scalar()
+    if (total or 0) <= 1:
+        raise HTTPException(status.HTTP_409_CONFLICT, "O treino precisa ter ao menos um exercício")
+    # descansos ligados a este exercício saem junto (ON DELETE CASCADE)
+    await db.delete(te)
+    await db.flush()
+    return await montar_treino(db, treino_id)

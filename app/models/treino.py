@@ -58,6 +58,8 @@ class TreinoExercicio(Base):
     ordem: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     series: Mapped[str] = mapped_column(Text, nullable=False)
     carga: Mapped[str | None] = mapped_column(Text)
+    # NULL = usa o descanso padrão do exercício; o aluno pode personalizar (15-300 s).
+    descanso_segundos: Mapped[int | None] = mapped_column(SmallInteger)
     concluido_em: Mapped[datetime | None] = mapped_column()
 
 

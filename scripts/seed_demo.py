@@ -9,6 +9,11 @@ Uso:
 """
 
 import asyncio
+import random
+import re
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -203,11 +208,104 @@ SEED = [
 ]
 
 
+KG = re.compile(r"(\d+(?:[.,]\d+)?)\s*kg", re.I)
+FOCOS = ["pernas", "peito_triceps", "costas_biceps", "ombros", "bracos", "fullbody"]
+
+
+async def seed_historico(conn) -> None:
+    """10 semanas de treinos concluídos do aluno demo, com carga subindo aos poucos
+    e frequência crescente — para a tela de evolução mostrar algo real."""
+    catalogo = (
+        (
+            await conn.execute(
+                text(
+                    "SELECT id::text, foco::text, series_padrao, carga_sugerida FROM exercicios "
+                    "WHERE academia_id IS NULL ORDER BY foco, ordem_preferencial, nome"
+                )
+            )
+        )
+        .mappings()
+        .all()
+    )
+    por_foco: dict[str, list] = defaultdict(list)
+    for e in catalogo:
+        por_foco[e["foco"]].append(e)
+    if not por_foco:
+        print("Catálogo de exercícios vazio: histórico do aluno demo não criado.")
+        return
+
+    rnd = random.Random(7)
+    tz = ZoneInfo("America/Sao_Paulo")
+    hoje = date.today()
+    n = 0
+    for atras in range(70, 0, -1):
+        dia = hoje - timedelta(days=atras)
+        semana = (70 - atras) // 7  # 0 = mais antiga
+        if dia.weekday() == 6 or rnd.random() > min(0.6, 0.3 + 0.04 * semana):
+            continue
+        foco = FOCOS[n % len(FOCOS)]
+        exs = por_foco.get(foco, [])[:4]
+        if not exs:
+            continue
+        n += 1
+        ini = datetime(
+            dia.year,
+            dia.month,
+            dia.day,
+            rnd.choice([6, 7, 12, 18, 19]),
+            rnd.choice([0, 15, 30]),
+            tzinfo=tz,
+        )
+        dur = rnd.randint(28, 48)
+        treino_id = (
+            await conn.execute(
+                text(
+                    "INSERT INTO treinos (academia_id, aluno_id, minutos_disponiveis, foco, iniciado_em, "
+                    "concluido_em, esforco) VALUES (:ac, :al, :min, CAST(:foco AS foco_muscular), :ini, :fim, :esf) "
+                    "RETURNING id::text"
+                ),
+                {
+                    "ac": IRON,
+                    "al": ALUNO_DEMO,
+                    "min": rnd.choice([30, 40, 45]),
+                    "foco": foco,
+                    "ini": ini,
+                    "fim": ini + timedelta(minutes=dur),
+                    "esf": rnd.choice([3, 3, 4, 4, 5]),
+                },
+            )
+        ).scalar()
+        for ordem, e in enumerate(exs, start=1):
+            carga = e["carga_sugerida"]
+            m = KG.search(carga or "")
+            if m:
+                base = float(m.group(1).replace(",", "."))
+                kg = base + 2.5 * (semana // 2) + rnd.choice([0, 0, 2.5])
+                carga = KG.sub(f"{kg:g} kg", carga, count=1)
+            feito = ordem < len(exs) or rnd.random() > 0.1
+            await conn.execute(
+                text(
+                    "INSERT INTO treino_exercicios (treino_id, exercicio_id, ordem, series, carga, concluido_em) "
+                    "VALUES (CAST(:t AS uuid), CAST(:e AS uuid), :o, :s, :c, :fim)"
+                ),
+                {
+                    "t": treino_id,
+                    "e": e["id"],
+                    "o": ordem,
+                    "s": e["series_padrao"],
+                    "c": carga,
+                    "fim": ini + timedelta(minutes=ordem * 8) if feito else None,
+                },
+            )
+    print(f"{n} treinos de histórico criados para o aluno demo.")
+
+
 async def main() -> None:
     engine = create_async_engine(settings.migrations_database_url)
     async with engine.begin() as conn:
         for stmt in LIMPAR + SEED:
             await conn.execute(text(stmt))
+        await seed_historico(conn)
     await engine.dispose()
     print("Dados demo criados.")
 

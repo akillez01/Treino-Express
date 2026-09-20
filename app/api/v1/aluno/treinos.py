@@ -7,12 +7,15 @@ from app.api.deps import get_current_aluno, get_tenant_db
 from app.core.redis import get_redis
 from app.core.security import TokenPayload
 from app.schemas.treino import (
+    AjusteIn,
+    AlternativaOut,
     AnuncioStubOut,
     DescansoOut,
     ExercicioConcluidoOut,
     GerarTreinoIn,
     IniciarDescansoIn,
     TreinoOut,
+    TrocarIn,
 )
 from app.services import ads_service, treino_service, tv_events
 
@@ -72,3 +75,56 @@ async def concluir_exercicio_rota(
     aluno: TokenPayload = Depends(get_current_aluno),
 ) -> ExercicioConcluidoOut:
     return await treino_service.concluir_exercicio(db, treino_id=treino_id, ordem=ordem)
+
+
+@router.get("/{treino_id}", response_model=TreinoOut)
+async def obter_treino_rota(
+    treino_id: UUID,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+) -> TreinoOut:
+    return await treino_service.montar_treino(db, treino_id)
+
+
+@router.patch("/{treino_id}/exercicio/{ordem}", response_model=TreinoOut)
+async def ajustar_exercicio_rota(
+    treino_id: UUID,
+    ordem: int,
+    body: AjusteIn,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+) -> TreinoOut:
+    return await treino_service.ajustar_exercicio(db, treino_id=treino_id, ordem=ordem, ajuste=body)
+
+
+@router.get("/{treino_id}/exercicio/{ordem}/alternativas", response_model=list[AlternativaOut])
+async def alternativas_rota(
+    treino_id: UUID,
+    ordem: int,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+) -> list[AlternativaOut]:
+    return await treino_service.alternativas(db, treino_id=treino_id, ordem=ordem)
+
+
+@router.put("/{treino_id}/exercicio/{ordem}/trocar", response_model=TreinoOut)
+async def trocar_exercicio_rota(
+    treino_id: UUID,
+    ordem: int,
+    body: TrocarIn,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+) -> TreinoOut:
+    return await treino_service.trocar_exercicio(
+        db, treino_id=treino_id, ordem=ordem, exercicio_id=body.exercicio_id
+    )
+
+
+@router.delete("/{treino_id}/exercicio/{ordem}", response_model=TreinoOut)
+async def remover_exercicio_rota(
+    treino_id: UUID,
+    ordem: int,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+) -> TreinoOut:
+    return await treino_service.remover_exercicio(db, treino_id=treino_id, ordem=ordem)

@@ -17,6 +17,7 @@ class ExercicioOut(BaseModel):
     series: str
     carga: str | None = None
     imagem_url: str | None = None
+    descanso_segundos: int = 60
 
 
 class TreinoOut(BaseModel):
@@ -52,3 +53,25 @@ class ExercicioConcluidoOut(BaseModel):
     concluido_em: datetime
     proximo_ordem: int | None = None
     treino_concluido: bool
+
+
+class AjusteIn(BaseModel):
+    """Ajuste do aluno em um exercício do treino. Campos omitidos não mudam."""
+
+    series: str | None = Field(default=None, min_length=1, max_length=30)
+    carga: str | None = Field(default=None, max_length=40)
+    descanso_segundos: int | None = Field(default=None, ge=15, le=300)
+    aplicar_descanso_a_todos: bool = False
+
+
+class AlternativaOut(BaseModel):
+    exercicio_id: UUID
+    nome: str
+    series: str
+    carga: str | None = None
+    imagem_url: str | None = None
+    descanso_segundos: int
+
+
+class TrocarIn(BaseModel):
+    exercicio_id: UUID
