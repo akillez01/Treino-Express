@@ -1,0 +1,35 @@
+:root {
+  --bg: #0d0e10;
+  --surface: #15171a;
+  --surface-2: #1a1c20;
+  --track: #25282d;
+  --accent: #c5ff3d;
+  --accent-on: #0d0e10;
+  --accent-glow: color-mix(in oklch, var(--accent) 28%, transparent);
+  --ink: #f4f5f3;
+  --ink-66: rgba(244, 245, 243, 0.66);
+  --border: rgba(255, 255, 255, 0.07);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:active {
+  transform: scale(0.985);
+}
