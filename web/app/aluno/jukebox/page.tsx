@@ -16,7 +16,10 @@ import {
   type PlaylistSpotify,
 } from "@/lib/api";
 import AlunoTabs from "../_components/AlunoTabs";
-import SpotifyPlayer, { selecionarFaixaSpotify } from "./SpotifyPlayer";
+import SpotifyPlayer, {
+  selecionarFaixaSpotify,
+  selecionarPlaylistSpotify,
+} from "./SpotifyPlayer";
 import s from "./jukebox.module.css";
 
 const mmss = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
@@ -63,6 +66,7 @@ export default function Jukebox() {
     if (playlistAberta === p.id) {
       setPlaylistAberta(null);
     } else {
+      selecionarPlaylistSpotify(p.id, p.name);
       setPlaylistAberta(p.id);
     }
   }
@@ -113,7 +117,7 @@ export default function Jukebox() {
   }
 
   function escolherResultado(f: FaixaSpotify) {
-    selecionarFaixaSpotify(f.id);
+    selecionarFaixaSpotify(f.id, f.titulo);
     setSelecionada({
       spotify_id: f.id,
       titulo: f.titulo,
@@ -262,10 +266,6 @@ export default function Jukebox() {
         <section className={s.library}>
           <h2 className={s.h2}>Minha biblioteca</h2>
           <p className={s.librarySub}>Suas músicas para ouvir com fones durante o treino.</p>
-          {selecionada && <SpotifyPlayer spotifyId={selecionada.spotify_id} titulo={selecionada.titulo} />}
-          {!selecionada && biblioteca.data?.faixas[0] && (
-            <SpotifyPlayer spotifyId={biblioteca.data.faixas[0].spotify_id} titulo={biblioteca.data.faixas[0].titulo} />
-          )}
           <ul className={s.list}>
             {biblioteca.data?.faixas.length === 0 && <li className={s.vazio}>Sua biblioteca está vazia.</li>}
             {biblioteca.data?.faixas.map((f) => (
@@ -283,7 +283,13 @@ export default function Jukebox() {
                   </div>
                 </div>
                 <div className={s.acoes}>
-                  <button className={s.ouvir} onClick={() => setSelecionada(f)}>
+                  <button
+                    className={s.ouvir}
+                    onClick={() => {
+                      setSelecionada(f);
+                      selecionarFaixaSpotify(f.spotify_id, f.titulo);
+                    }}
+                  >
                     Ouvir
                   </button>
                   <button className={s.remover} disabled={removendo === f.spotify_id} onClick={() => remover(f)}>

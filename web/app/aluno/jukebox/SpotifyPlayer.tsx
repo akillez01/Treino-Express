@@ -5,11 +5,42 @@ import { useEffect, useState } from "react";
 import s from "./jukebox.module.css";
 
 export const SPOTIFY_TRACK_STORAGE_KEY = "treino-express:spotify-track";
+const SPOTIFY_SELECTION_EVENT = "treino-express:spotify-selection";
 
-export function selecionarFaixaSpotify(spotifyId: string) {
+export type SpotifySelection = {
+  id: string;
+  titulo?: string;
+  tipo: "track" | "playlist";
+};
+
+function salvarSelecao(selecao: SpotifySelection) {
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(SPOTIFY_TRACK_STORAGE_KEY, spotifyId);
+    window.localStorage.setItem(SPOTIFY_TRACK_STORAGE_KEY, JSON.stringify(selecao));
+    window.dispatchEvent(new CustomEvent(SPOTIFY_SELECTION_EVENT, { detail: selecao }));
   }
+}
+
+export function selecionarFaixaSpotify(spotifyId: string, titulo?: string) {
+  salvarSelecao({ id: spotifyId, titulo, tipo: "track" });
+}
+
+export function selecionarPlaylistSpotify(spotifyId: string, titulo?: string) {
+  salvarSelecao({ id: spotifyId, titulo, tipo: "playlist" });
+}
+
+export function lerSelecaoSpotify(): SpotifySelection | null {
+  if (typeof window === "undefined") return null;
+  const guardado = window.localStorage.getItem(SPOTIFY_TRACK_STORAGE_KEY);
+  if (!guardado) return null;
+  try {
+    const selecao = JSON.parse(guardado) as Partial<SpotifySelection>;
+    if (typeof selecao.id === "string" && (selecao.tipo === "track" || selecao.tipo === "playlist")) {
+      return { id: selecao.id, titulo: selecao.titulo, tipo: selecao.tipo };
+    }
+  } catch {
+    return { id: guardado, tipo: "track" };
+  }
+  return null;
 }
 
 export default function SpotifyPlayer({
@@ -27,12 +58,12 @@ export default function SpotifyPlayer({
 
   useEffect(() => {
     if (spotifyId) {
-      selecionarFaixaSpotify(spotifyId);
+      salvarSelecao({ id: spotifyId, titulo, tipo });
       setId(spotifyId);
       return;
     }
-    setId(window.localStorage.getItem(SPOTIFY_TRACK_STORAGE_KEY));
-  }, [spotifyId]);
+    setId(lerSelecaoSpotify()?.id ?? null);
+  }, [spotifyId, tipo, titulo]);
 
   if (!id) {
     return compacto ? null : <p className={s.playerEmpty}>Escolha uma faixa da sua biblioteca para ouvir.</p>;
