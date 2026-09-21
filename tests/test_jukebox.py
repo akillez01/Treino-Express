@@ -50,10 +50,14 @@ def playlists_falsas(monkeypatch):
     async def buscar(_termo, _limite=10):
         return [_playlist(ID_A)]
 
+    async def obter(spotify_id):
+        return _playlist(spotify_id)
+
     async def faixas(_playlist_id, _limite=30):
         return [_faixa(ID_B, "Faixa da playlist")]
 
     monkeypatch.setattr(spotify, "buscar_playlists", buscar)
+    monkeypatch.setattr(spotify, "obter_playlist", obter)
     monkeypatch.setattr(spotify, "obter_faixas_playlist", faixas)
 
 
@@ -176,6 +180,73 @@ async def test_biblioteca_retorna_404_sem_metadados(
     monkeypatch.setattr(spotify, "obter_faixa", ausente)
     r = await client.post(
         "/v1/jukebox/biblioteca",
+        json={"spotify_id": ID_A},
+        headers=auth_header(duas_academias["token_a"]),
+    )
+    assert r.status_code == 404
+
+
+async def test_playlists_salva_lista_remove_e_isola_alunos(
+    client, duas_academias, playlists_falsas
+):
+    h_a = auth_header(duas_academias["token_a"])
+    h_b = auth_header(duas_academias["token_b"])
+
+    salvo = await client.post(
+        "/v1/jukebox/biblioteca/playlists", json={"spotify_id": ID_A}, headers=h_a
+    )
+    assert salvo.status_code == 201
+    assert salvo.json()["id"] == ID_A
+
+    playlists_a = await client.get("/v1/jukebox/biblioteca/playlists", headers=h_a)
+    playlists_b = await client.get("/v1/jukebox/biblioteca/playlists", headers=h_b)
+    assert [p["id"] for p in playlists_a.json()["playlists"]] == [ID_A]
+    assert playlists_b.json()["playlists"] == []
+
+    removido = await client.delete(f"/v1/jukebox/biblioteca/playlists/{ID_A}", headers=h_a)
+    assert removido.status_code == 204
+    assert (await client.get("/v1/jukebox/biblioteca/playlists", headers=h_a)).json()[
+        "playlists"
+    ] == []
+
+
+async def test_playlists_nao_duplica_playlist(client, duas_academias, playlists_falsas):
+    h = auth_header(duas_academias["token_a"])
+    for _ in range(2):
+        assert (
+            await client.post(
+                "/v1/jukebox/biblioteca/playlists", json={"spotify_id": ID_A}, headers=h
+            )
+        ).status_code == 201
+    playlists = (await client.get("/v1/jukebox/biblioteca/playlists", headers=h)).json()[
+        "playlists"
+    ]
+    assert len(playlists) == 1
+
+
+async def test_playlists_rejeita_id_invalido(client, duas_academias):
+    h = auth_header(duas_academias["token_a"])
+    assert (
+        await client.post(
+            "/v1/jukebox/biblioteca/playlists",
+            json={"spotify_id": "../../x"},
+            headers=h,
+        )
+    ).status_code == 422
+    assert (
+        await client.delete("/v1/jukebox/biblioteca/playlists/not-valid", headers=h)
+    ).status_code == 422
+
+
+async def test_playlists_retorna_404_sem_metadados(
+    client, duas_academias, playlists_falsas, monkeypatch
+):
+    async def ausente(_spotify_id):
+        return None
+
+    monkeypatch.setattr(spotify, "obter_playlist", ausente)
+    r = await client.post(
+        "/v1/jukebox/biblioteca/playlists",
         json={"spotify_id": ID_A},
         headers=auth_header(duas_academias["token_a"]),
     )

@@ -7,12 +7,16 @@ import {
   bibliotecaJukebox,
   filaJukebox,
   pedirMusica,
+  playlistsBiblioteca,
   removerBiblioteca,
+  removerPlaylistBiblioteca,
   salvarBiblioteca,
+  salvarPlaylistBiblioteca,
   statusJukebox,
   useApi,
   type FaixaBiblioteca,
   type FaixaSpotify,
+  type PlaylistBiblioteca,
   type PlaylistSpotify,
 } from "@/lib/api";
 import AlunoTabs from "../_components/AlunoTabs";
@@ -28,6 +32,7 @@ export default function Jukebox() {
   const status = useApi("jb-status", statusJukebox);
   const fila = useApi("jb-fila", filaJukebox);
   const biblioteca = useApi("jb-biblioteca", bibliotecaJukebox);
+  const playlistsSalvas = useApi("jb-playlists", playlistsBiblioteca);
   const [q, setQ] = useState("");
   const [modo, setModo] = useState<"musicas" | "playlists">("musicas");
   const [faixas, setFaixas] = useState<FaixaSpotify[] | null>(null);
@@ -38,6 +43,8 @@ export default function Jukebox() {
   const [pedindo, setPedindo] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [removendo, setRemovendo] = useState<string | null>(null);
+  const [salvandoPlaylist, setSalvandoPlaylist] = useState<string | null>(null);
+  const [removendoPlaylist, setRemovendoPlaylist] = useState<string | null>(null);
   const [selecionada, setSelecionada] = useState<FaixaBiblioteca | null>(null);
 
   async function buscar(e: React.FormEvent) {
@@ -68,6 +75,37 @@ export default function Jukebox() {
     } else {
       selecionarPlaylistSpotify(p.id, p.name);
       setPlaylistAberta(p.id);
+    }
+  }
+
+  async function salvarPlaylist(p: PlaylistSpotify) {
+    setSalvandoPlaylist(p.id);
+    setMsg(null);
+    try {
+      const salva = await salvarPlaylistBiblioteca(p.id);
+      playlistsSalvas.recarregar();
+      selecionarPlaylistSpotify(salva.id, salva.name);
+      setPlaylistAberta(salva.id);
+      setMsg({ tipo: "ok", texto: `"${salva.name}" foi salva nas suas playlists.` });
+    } catch (err) {
+      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Não foi possível salvar a playlist" });
+    } finally {
+      setSalvandoPlaylist(null);
+    }
+  }
+
+  async function removerPlaylist(p: PlaylistBiblioteca) {
+    setRemovendoPlaylist(p.id);
+    setMsg(null);
+    try {
+      await removerPlaylistBiblioteca(p.id);
+      if (playlistAberta === p.id) setPlaylistAberta(null);
+      playlistsSalvas.recarregar();
+      setMsg({ tipo: "ok", texto: `"${p.name}" foi removida das suas playlists.` });
+    } catch (err) {
+      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Não foi possível remover a playlist" });
+    } finally {
+      setRemovendoPlaylist(null);
     }
   }
 
@@ -129,6 +167,7 @@ export default function Jukebox() {
   }
 
   const salvos = new Set((biblioteca.data?.faixas ?? []).map((f) => f.spotify_id));
+  const playlistsSalvasIds = new Set((playlistsSalvas.data?.playlists ?? []).map((p) => p.id));
   const naoConfigurado = status.data && !status.data.spotify_configurado;
 
   function renderFaixa(f: FaixaSpotify) {
@@ -246,9 +285,18 @@ export default function Jukebox() {
                     {p.owner || "Spotify"} · {p.tracks_total} {p.tracks_total === 1 ? "faixa" : "faixas"}
                   </div>
                 </div>
-                <button className={s.abrirPlaylist} onClick={() => abrirPlaylist(p)}>
-                  {playlistAberta === p.id ? "Fechar" : "Ouvir playlist"}
-                </button>
+                <div className={s.acoes}>
+                  <button
+                    className={s.salvar}
+                    disabled={salvandoPlaylist === p.id || playlistsSalvasIds.has(p.id)}
+                    onClick={() => salvarPlaylist(p)}
+                  >
+                    {salvandoPlaylist === p.id ? "Salvando..." : playlistsSalvasIds.has(p.id) ? "Salva" : "Salvar playlist"}
+                  </button>
+                  <button className={s.abrirPlaylist} onClick={() => abrirPlaylist(p)}>
+                    {playlistAberta === p.id ? "Fechar" : "Ouvir playlist"}
+                  </button>
+                </div>
                 {playlistAberta === p.id && (
                   <div className={s.playlistPlayer}>
                     <SpotifyPlayer spotifyId={p.id} titulo={p.name} tipo="playlist" />
@@ -262,6 +310,49 @@ export default function Jukebox() {
             ))}
           </ul>
         )}
+
+        <section className={s.library}>
+          <h2 className={s.h2}>Playlists salvas</h2>
+          <p className={s.librarySub}>Seu histórico de playlists para continuar ouvindo.</p>
+          <ul className={s.list}>
+            {playlistsSalvas.data?.playlists.length === 0 && (
+              <li className={s.vazio}>Você ainda não salvou nenhuma playlist.</li>
+            )}
+            {playlistsSalvas.data?.playlists.map((p) => (
+              <li key={p.id} className={playlistAberta === p.id ? `${s.playlistItem} ${s.itemOn}` : s.playlistItem}>
+                {p.cover_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.cover_url} alt="" className={s.capa} />
+                ) : (
+                  <div className={s.capa} />
+                )}
+                <div className={s.info}>
+                  <div className={s.nome}>{p.name}</div>
+                  <div className={s.artista}>
+                    {p.owner || "Spotify"} · {p.tracks_total} {p.tracks_total === 1 ? "faixa" : "faixas"}
+                  </div>
+                </div>
+                <div className={s.acoes}>
+                  <button className={s.ouvir} onClick={() => abrirPlaylist(p)}>
+                    {playlistAberta === p.id ? "Fechar" : "Ouvir novamente"}
+                  </button>
+                  <button
+                    className={s.remover}
+                    disabled={removendoPlaylist === p.id}
+                    onClick={() => removerPlaylist(p)}
+                  >
+                    {removendoPlaylist === p.id ? "..." : "Remover"}
+                  </button>
+                </div>
+                {playlistAberta === p.id && (
+                  <div className={s.playlistPlayer}>
+                    <SpotifyPlayer spotifyId={p.id} titulo={p.name} tipo="playlist" />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className={s.library}>
           <h2 className={s.h2}>Minha biblioteca</h2>

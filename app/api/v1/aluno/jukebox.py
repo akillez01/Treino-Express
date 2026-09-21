@@ -65,6 +65,15 @@ class PlaylistsOut(BaseModel):
     playlists: list[PlaylistOut]
 
 
+class BibliotecaPlaylistOut(PlaylistOut):
+    spotify_id: str
+    adicionada_em: datetime
+
+
+class BibliotecaPlaylistsOut(BaseModel):
+    playlists: list[BibliotecaPlaylistOut]
+
+
 class PlaylistFaixasOut(BaseModel):
     faixas: list[FaixaSpotifyOut]
 
@@ -136,6 +145,94 @@ async def listar_biblioteca(
         {"aluno": str(aluno.aluno_id)},
     )
     return {"faixas": [BibliotecaFaixaOut(**dict(row)) for row in resultado.mappings().all()]}
+
+
+class BibliotecaPlaylistIn(BaseModel):
+    spotify_id: str = Field(pattern=SPOTIFY_ID_PATTERN)
+
+
+@router.get("/biblioteca/playlists", response_model=BibliotecaPlaylistsOut)
+async def listar_playlists_biblioteca(
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+):
+    resultado = await db.execute(
+        text(
+            """
+            SELECT spotify_id AS id, spotify_id, name, owner, cover_url, tracks_total, adicionada_em
+            FROM aluno_biblioteca_playlists
+            WHERE aluno_id = CAST(:aluno AS uuid)
+            ORDER BY adicionada_em DESC
+            """
+        ),
+        {"aluno": str(aluno.aluno_id)},
+    )
+    return {"playlists": [BibliotecaPlaylistOut(**dict(row)) for row in resultado.mappings().all()]}
+
+
+@router.post(
+    "/biblioteca/playlists",
+    response_model=BibliotecaPlaylistOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def salvar_playlist_biblioteca(
+    body: BibliotecaPlaylistIn,
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+):
+    try:
+        playlist = await spotify.obter_playlist(body.spotify_id)
+    except (spotify.SpotifyNaoConfigurado, spotify.SpotifyIndisponivel) as exc:
+        raise _erro_spotify(exc) from exc
+    if playlist is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Playlist não encontrada no Spotify")
+
+    resultado = await db.execute(
+        text(
+            """
+            INSERT INTO aluno_biblioteca_playlists
+                (aluno_id, spotify_id, name, owner, cover_url, tracks_total)
+            VALUES
+                (CAST(:aluno AS uuid), :spotify_id, :name, :owner, :cover_url, :tracks_total)
+            ON CONFLICT (aluno_id, spotify_id) DO UPDATE SET
+                name = EXCLUDED.name,
+                owner = EXCLUDED.owner,
+                cover_url = EXCLUDED.cover_url,
+                tracks_total = EXCLUDED.tracks_total,
+                adicionada_em = now()
+            RETURNING spotify_id AS id, spotify_id, name, owner, cover_url, tracks_total, adicionada_em
+            """
+        ),
+        {
+            "aluno": str(aluno.aluno_id),
+            "spotify_id": playlist.id,
+            "name": playlist.name,
+            "owner": playlist.owner,
+            "cover_url": playlist.cover_url,
+            "tracks_total": playlist.tracks_total,
+        },
+    )
+    return BibliotecaPlaylistOut(**dict(resultado.mappings().one()))
+
+
+@router.delete("/biblioteca/playlists/{spotify_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remover_playlist_biblioteca(
+    spotify_id: str = Path(pattern=SPOTIFY_ID_PATTERN),
+    db: AsyncSession = Depends(get_tenant_db),
+    aluno: TokenPayload = Depends(get_current_aluno),
+):
+    resultado = await db.execute(
+        text(
+            """
+            DELETE FROM aluno_biblioteca_playlists
+            WHERE aluno_id = CAST(:aluno AS uuid) AND spotify_id = :spotify_id
+            """
+        ),
+        {"aluno": str(aluno.aluno_id), "spotify_id": spotify_id},
+    )
+    if resultado.rowcount == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Playlist não está no seu histórico")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/biblioteca", response_model=BibliotecaFaixaOut, status_code=status.HTTP_201_CREATED)

@@ -319,6 +319,10 @@ export type PlaylistSpotify = {
   cover_url: string | null;
   tracks_total: number;
 };
+export type PlaylistBiblioteca = PlaylistSpotify & {
+  spotify_id: string;
+  adicionada_em: string;
+};
 export type ItemFila = {
   id: string;
   titulo: string;
@@ -360,6 +364,15 @@ export const salvarBiblioteca = (spotifyId: string) =>
   });
 export const removerBiblioteca = (spotifyId: string) =>
   api<void>("aluno", `/v1/jukebox/biblioteca/${encodeURIComponent(spotifyId)}`, { method: "DELETE" });
+export const playlistsBiblioteca = () =>
+  api<{ playlists: PlaylistBiblioteca[] }>("aluno", "/v1/jukebox/biblioteca/playlists");
+export const salvarPlaylistBiblioteca = (spotifyId: string) =>
+  api<PlaylistBiblioteca>("aluno", "/v1/jukebox/biblioteca/playlists", {
+    method: "POST",
+    body: JSON.stringify({ spotify_id: spotifyId }),
+  });
+export const removerPlaylistBiblioteca = (spotifyId: string) =>
+  api<void>("aluno", `/v1/jukebox/biblioteca/playlists/${encodeURIComponent(spotifyId)}`, { method: "DELETE" });
 
 // ---------------- TV (WebSocket) ----------------
 export type TvAuth = { token: string; academia_id: string };

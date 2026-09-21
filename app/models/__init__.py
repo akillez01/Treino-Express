@@ -5,7 +5,7 @@ não depende disso, é SQL puro)."""
 from app.models.academia import Academia
 from app.models.aluno import Aluno
 from app.models.anunciante import Anunciante
-from app.models.biblioteca import AlunoBibliotecaFaixa
+from app.models.biblioteca import AlunoBibliotecaFaixa, AlunoBibliotecaPlaylist
 from app.models.campanha import CampanhaAd
 from app.models.exercicio import Exercicio
 from app.models.financeiro import CreditoAnunciante, Lancamento, Repasse
@@ -20,6 +20,7 @@ __all__ = [
     "Aluno",
     "Anunciante",
     "AlunoBibliotecaFaixa",
+    "AlunoBibliotecaPlaylist",
     "CampanhaAd",
     "Exercicio",
     "CreditoAnunciante",

@@ -211,6 +211,13 @@ async def buscar_playlists(query: str, limite: int = 10) -> list[Playlist]:
     return [playlist for item in itens if (playlist := _playlist(item)) is not None]
 
 
+async def obter_playlist(spotify_id: str) -> Playlist | None:
+    if not _SPOTIFY_ID.fullmatch(spotify_id):
+        raise ValueError("ID de playlist Spotify inválido")
+    dados = await _get(f"/playlists/{spotify_id}", {"market": settings.spotify_market})
+    return _playlist(dados)
+
+
 async def obter_faixas_playlist(playlist_id: str, limite: int = 30) -> list[Faixa]:
     if not _SPOTIFY_ID.fullmatch(playlist_id):
         raise ValueError("ID de playlist Spotify inválido")
