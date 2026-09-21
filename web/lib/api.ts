@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+const API_DEFAULT =
+  process.env.NODE_ENV === "production"
+    ? "https://directory-parameter-lat-attending.trycloudflare.com"
+    : "http://127.0.0.1:8000";
+
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? API_DEFAULT).replace(/\/$/, "");
 
 export type Perfil = "aluno" | "gestor" | "anunciante";
 
