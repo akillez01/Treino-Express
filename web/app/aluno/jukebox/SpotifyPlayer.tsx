@@ -16,10 +16,12 @@ export default function SpotifyPlayer({
   spotifyId,
   titulo,
   compacto = false,
+  tipo = "track",
 }: {
   spotifyId?: string | null;
   titulo?: string;
   compacto?: boolean;
+  tipo?: "track" | "playlist";
 }) {
   const [id, setId] = useState<string | null>(spotifyId ?? null);
 
@@ -36,7 +38,7 @@ export default function SpotifyPlayer({
     return compacto ? null : <p className={s.playerEmpty}>Escolha uma faixa da sua biblioteca para ouvir.</p>;
   }
 
-  const embedUrl = `https://open.spotify.com/embed/track/${encodeURIComponent(id)}?utm_source=generator&theme=0`;
+  const embedUrl = `https://open.spotify.com/embed/${tipo}/${encodeURIComponent(id)}?utm_source=generator&theme=0`;
 
   return (
     <section className={compacto ? s.playerCompact : s.player}>

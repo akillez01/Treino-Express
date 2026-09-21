@@ -5,7 +5,6 @@ import {
   buscarMusicas,
   buscarPlaylists,
   bibliotecaJukebox,
-  faixasPlaylist,
   filaJukebox,
   pedirMusica,
   removerBiblioteca,
@@ -31,8 +30,6 @@ export default function Jukebox() {
   const [faixas, setFaixas] = useState<FaixaSpotify[] | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistSpotify[] | null>(null);
   const [playlistAberta, setPlaylistAberta] = useState<string | null>(null);
-  const [faixasDaPlaylist, setFaixasDaPlaylist] = useState<FaixaSpotify[] | null>(null);
-  const [carregandoPlaylist, setCarregandoPlaylist] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [pedindo, setPedindo] = useState<string | null>(null);
@@ -62,23 +59,11 @@ export default function Jukebox() {
     }
   }
 
-  async function abrirPlaylist(p: PlaylistSpotify) {
+  function abrirPlaylist(p: PlaylistSpotify) {
     if (playlistAberta === p.id) {
       setPlaylistAberta(null);
-      setFaixasDaPlaylist(null);
-      return;
-    }
-    setCarregandoPlaylist(p.id);
-    setPlaylistAberta(p.id);
-    setFaixasDaPlaylist(null);
-    setMsg(null);
-    try {
-      setFaixasDaPlaylist((await faixasPlaylist(p.id)).faixas);
-    } catch (err) {
-      setMsg({ tipo: "erro", texto: err instanceof Error ? err.message : "Não foi possível abrir a playlist" });
-      setPlaylistAberta(null);
-    } finally {
-      setCarregandoPlaylist(null);
+    } else {
+      setPlaylistAberta(p.id);
     }
   }
 
@@ -196,7 +181,6 @@ export default function Jukebox() {
               setFaixas(null);
               setPlaylists(null);
               setPlaylistAberta(null);
-              setFaixasDaPlaylist(null);
             }}
           >
             Músicas
@@ -211,7 +195,6 @@ export default function Jukebox() {
               setFaixas(null);
               setPlaylists(null);
               setPlaylistAberta(null);
-              setFaixasDaPlaylist(null);
             }}
           >
             Playlists do Spotify
@@ -259,14 +242,17 @@ export default function Jukebox() {
                     {p.owner || "Spotify"} · {p.tracks_total} {p.tracks_total === 1 ? "faixa" : "faixas"}
                   </div>
                 </div>
-                <button className={s.abrirPlaylist} onClick={() => abrirPlaylist(p)} disabled={carregandoPlaylist === p.id}>
-                  {carregandoPlaylist === p.id ? "Abrindo..." : playlistAberta === p.id ? "Fechar" : "Ver faixas"}
+                <button className={s.abrirPlaylist} onClick={() => abrirPlaylist(p)}>
+                  {playlistAberta === p.id ? "Fechar" : "Ouvir playlist"}
                 </button>
-                {playlistAberta === p.id && faixasDaPlaylist && (
-                  <ul className={s.playlistTracks}>
-                    {faixasDaPlaylist.length === 0 && <li className={s.vazio}>Esta playlist não tem faixas disponíveis.</li>}
-                    {faixasDaPlaylist.map(renderFaixa)}
-                  </ul>
+                {playlistAberta === p.id && (
+                  <div className={s.playlistPlayer}>
+                    <SpotifyPlayer spotifyId={p.id} titulo={p.name} tipo="playlist" />
+                    <p className={s.librarySub}>
+                      Para salvar uma música individual, pesquise por ela na aba Músicas e toque em
+                      “Salvar na biblioteca”.
+                    </p>
+                  </div>
                 )}
               </li>
             ))}
