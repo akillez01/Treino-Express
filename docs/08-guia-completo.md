@@ -16,7 +16,7 @@ Navegador (Next.js)
 API FastAPI ─── PostgreSQL + RLS
         │
         ├── Redis (fila, eventos da TV e estado em tempo real)
-        ├── Spotify Web API (busca e metadados)
+        ├── Spotify Web API + Web Playback SDK (login e reprodução)
         └── WhatsApp Cloud API (lembretes, quando configurada)
 ```
 
@@ -66,7 +66,7 @@ substitui os registros persistidos.
 | Isolamento | Row Level Security (RLS) por academia |
 | Tempo real | Redis e WebSocket |
 | Web | Next.js, React, TypeScript e CSS Modules |
-| Música | Spotify Web API + Spotify Embed |
+| Música | Spotify Web API + Web Playback SDK oficial |
 | Deploy web | Vercel |
 | Deploy API | Docker Compose + Cloudflare Tunnel |
 
@@ -80,20 +80,31 @@ Nunca configure a API para usar a role de migrations.
 ## 4. Como o Spotify funciona
 
 A API usa Client Credentials para pesquisar faixas e playlists públicas e ler
-metadados. Ela não recebe a senha do aluno e não funciona como proxy de áudio.
+metadados. Para reprodução completa, o navegador faz OAuth Authorization Code
+com PKCE e usa o Web Playback SDK oficial. O `SPOTIFY_CLIENT_SECRET` fica
+somente no backend e nunca é enviado ao navegador.
 
-O áudio é reproduzido pelo player oficial incorporado do Spotify. Por isso:
+### Configuração OAuth
 
-- o aluno precisa clicar em Play;
-- uma conta Spotify e, em alguns casos, Premium podem ser necessários;
-- playlists privadas não aparecem na busca pública;
-- o player continua montado no layout do aluno ao navegar entre jukebox e treino;
-- fechar a aba ou recarregar a página pode interromper a reprodução;
-- uma playlist pode ser salva no histórico, mas músicas individuais são salvas
-  pela busca de músicas.
+1. Crie um app em [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).
+2. Em **Settings > Redirect URIs**, cadastre exatamente
+   `http://localhost:3000/aluno/spotify/callback` (ou o endereço HTTPS público).
+3. Defina `SPOTIFY_CLIENT_ID`, `SPOTIFY_REDIRECT_URI` e, opcionalmente,
+   `SPOTIFY_SCOPES=streaming user-read-email user-read-private` no `.env`.
+4. Inicie a API e o frontend, abra a Jukebox e clique em **Conectar Spotify**.
 
-O player guarda a seleção atual no `localStorage` para recuperar a faixa ou
-playlist na próxima navegação do mesmo navegador.
+O aluno precisa de uma conta **Spotify Premium** para o Web Playback SDK.
+Também é necessária uma interação do usuário para iniciar o áudio. Playlists
+podem ser selecionadas por contexto e faixas individuais por URI; fechar a aba
+ou recarregar a página pode interromper a reprodução. O player permanece
+montado no layout do aluno ao navegar entre Jukebox e treino.
+
+Tokens Spotify não são armazenados no servidor neste MVP: ficam em
+`sessionStorage` e são removidos em **Desconectar**. Isso reduz a persistência
+no navegador, mas ainda expõe o token à aba enquanto ela está aberta; em uma
+versão de produção, prefira sessão segura no backend/BFF e rotação/revogação
+de tokens. Sem conexão OAuth, o embed existente é apenas prévia e não promete
+reprodução completa.
 
 ## 5. Rotas principais
 
@@ -117,6 +128,9 @@ playlist na próxima navegação do mesmo navegador.
 | `DELETE` | `/v1/jukebox/biblioteca/playlists/{spotify_id}` | Remove uma playlist |
 | `POST` | `/v1/jukebox/pedidos` | Pede música para a TV |
 | `GET` | `/v1/jukebox/fila` | Consulta a fila da academia |
+| `GET` | `/v1/spotify/config` | Configuração pública para iniciar PKCE |
+| `POST` | `/v1/spotify/token` | Troca o código PKCE por tokens |
+| `POST` | `/v1/spotify/refresh` | Renova o access token Spotify |
 
 ### Academia e tempo real
 
@@ -128,6 +142,20 @@ WSS /ws/tv/{academia_id}?token=<jwt-da-tela>
 
 Eventos importantes: `ad.show`, `ad.impression`, `jukebox.now`,
 `jukebox.queue`, `screen.pause` e heartbeat.
+
+### Testar o fluxo sem credenciais reais
+
+Os testes de OAuth usam `httpx.MockTransport`, então não fazem chamadas reais ao
+Spotify:
+
+```bash
+uv run pytest -q tests/test_spotify_oauth.py
+cd web && npm run lint && npm run build
+```
+
+Para testar a reprodução manualmente, é necessário cadastrar o redirect URI,
+informar um Client ID válido e entrar com uma conta Premium. Nunca coloque o
+Client Secret em variáveis `NEXT_PUBLIC_*` ou no código do frontend.
 
 ## 6. Banco de dados e migrations
 
@@ -369,7 +397,8 @@ como faixa gera esse erro.
 
 1. Configurar um domínio estável para a API e remover dependência de túnel
    temporário.
-2. Implementar login real do aluno e autorização Spotify opcional por OAuth.
+2. Integrar o OAuth do Spotify a um login real do aluno e mover tokens para um
+   BFF/sessão segura no backend.
 3. Adicionar observabilidade, logs centralizados e alertas de disponibilidade.
 4. Finalizar Stripe Connect, workers de anúncios e cobrança por pedido.
-5. Criar testes de navegador para o fluxo biblioteca → player → treino.
+5. Criar testes de navegador para o fluxo biblioteca → OAuth → player → treino.

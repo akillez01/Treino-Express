@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import SpotifyPlayer, {
-  lerSelecaoSpotify,
-  type SpotifySelection,
-} from "../jukebox/SpotifyPlayer";
+import SpotifySdkPlayer from "./SpotifySdkPlayer";
+import { lerSelecaoSpotify, type SpotifySelection } from "../jukebox/SpotifyPlayer";
 
 const SELECTION_EVENT = "treino-express:spotify-selection";
 
@@ -21,13 +19,5 @@ export default function SpotifyGlobalPlayer() {
     return () => window.removeEventListener(SELECTION_EVENT, atualizar);
   }, []);
 
-  if (!selection) return null;
-  return (
-    <SpotifyPlayer
-      spotifyId={selection.id}
-      titulo={selection.titulo}
-      tipo={selection.tipo}
-      compacto
-    />
-  );
+  return <SpotifySdkPlayer selection={selection} />;
 }

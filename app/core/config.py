@@ -44,11 +44,13 @@ class Settings(BaseSettings):
     public_api_url: str = "http://127.0.0.1:8000"
     public_web_url: str = "http://127.0.0.1:3000"
 
-    # Spotify Web API (app em developer.spotify.com/dashboard). Fluxo Client
-    # Credentials: só busca de faixas e metadados, sem login do aluno no Spotify.
+    # Spotify Web API (app em developer.spotify.com/dashboard). O secret fica
+    # somente no backend e nunca é enviado ao navegador.
     spotify_client_id: str = ""
     spotify_client_secret: str = ""
     spotify_market: str = "BR"
+    spotify_redirect_uri: str = "http://localhost:3000/aluno/spotify/callback"
+    spotify_scopes: str = "streaming user-read-email user-read-private"
 
     # WhatsApp Business Cloud API (Meta) — lembretes de sequência. Vazio = simulado.
     whatsapp_token: str = ""

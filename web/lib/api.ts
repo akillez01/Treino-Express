@@ -374,6 +374,82 @@ export const salvarPlaylistBiblioteca = (spotifyId: string) =>
 export const removerPlaylistBiblioteca = (spotifyId: string) =>
   api<void>("aluno", `/v1/jukebox/biblioteca/playlists/${encodeURIComponent(spotifyId)}`, { method: "DELETE" });
 
+// ---------------- OAuth e reprodução oficial do Spotify ----------------
+export type SpotifyConfig = {
+  client_id: string;
+  authorize_url: string;
+  redirect_uri: string;
+  scopes: string;
+  configured: boolean;
+};
+export type SpotifyToken = {
+  access_token: string;
+  refresh_token: string | null;
+  expires_in: number;
+  token_type: string;
+};
+export type SpotifyPlaybackBody = {
+  context_uri?: string;
+  uris?: string[];
+  position_ms?: number;
+};
+
+/** Estas chamadas não usam o JWT do aluno: o token é o do Spotify. */
+export async function spotifyConfig(): Promise<SpotifyConfig> {
+  const response = await fetch(`${API_BASE}/v1/spotify/config`);
+  if (!response.ok) throw new ApiError(`Configuração do Spotify indisponível (${response.status})`, response.status);
+  return response.json() as Promise<SpotifyConfig>;
+}
+
+export const trocarCodigoSpotify = (code: string, codeVerifier: string, redirectUri: string) =>
+  fetchSpotifyToken("/v1/spotify/token", {
+    code,
+    code_verifier: codeVerifier,
+    redirect_uri: redirectUri,
+  });
+
+export const renovarTokenSpotify = (refreshToken: string) =>
+  fetchSpotifyToken("/v1/spotify/refresh", { refresh_token: refreshToken });
+
+async function fetchSpotifyToken(path: string, body: object): Promise<SpotifyToken> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError("Não foi possível conectar ao servidor para autenticar no Spotify.");
+  }
+  const payload = (await response.json().catch(() => ({}))) as Partial<SpotifyToken> & { detail?: string };
+  if (!response.ok || typeof payload.access_token !== "string") {
+    throw new ApiError(payload.detail || `Erro ${response.status} no Spotify`, response.status);
+  }
+  return {
+    access_token: payload.access_token,
+    refresh_token: typeof payload.refresh_token === "string" ? payload.refresh_token : null,
+    expires_in: typeof payload.expires_in === "number" ? payload.expires_in : 3600,
+    token_type: typeof payload.token_type === "string" ? payload.token_type : "Bearer",
+  };
+}
+
+export async function spotifyPlayback(
+  accessToken: string,
+  body: SpotifyPlaybackBody | null = null,
+  method: "PUT" | "POST" = "PUT",
+  path = "/v1/me/player/play",
+): Promise<Response> {
+  return fetch(`https://api.spotify.com${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+
 // ---------------- TV (WebSocket) ----------------
 export type TvAuth = { token: string; academia_id: string };
 
