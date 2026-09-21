@@ -3,14 +3,18 @@
 SaaS multi-tenant para academias (FastAPI + PostgreSQL com RLS + Redis).
 Design e contratos de referência: `../treino-express-handoff/`.
 
-## Estado atual (Fase 1 · fundação)
+## Estado atual
 
 - Schema aplicado via Alembic (baseline = SQL do handoff + enum de 6 focos + `exercicios.imagem_url`)
 - Auth JWT com 4 perfis (`aluno`, `gestor`, `anunciante`, `tela`)
 - Isolamento por tenant via Row Level Security
-- Rotas do app do aluno: `POST /v1/treinos/gerar`, `/v1/treinos/{id}/descanso`, `/v1/treinos/{id}/exercicio/{ordem}/concluir`
+- Rotas do app do aluno: treino, progresso, metas, ranking, jukebox, biblioteca
+  pessoal, playlists salvas e player Spotify persistente
 
 Ainda não existem: workers de anúncio (pacing por verba e cobrança), Stripe Connect.
+
+Documentação completa de arquitetura, configuração, deploy, tutorial, vantagens,
+limitações e troubleshooting: [`docs/08-guia-completo.md`](docs/08-guia-completo.md).
 
 ## TV em tempo real (WebSocket)
 
