@@ -77,7 +77,40 @@ Existem duas roles de banco:
 
 Nunca configure a API para usar a role de migrations.
 
-## 4. Como o Spotify funciona
+## 4. Login do aluno com Google
+
+O MVP usa o Google Identity Services (GIS) para autenticar a **conta do
+Treino Express**. O navegador recebe um ID token do botão oficial, mas a API
+sempre valida a credencial no endpoint `tokeninfo` do Google antes de emitir o
+JWT próprio. O ID token não é armazenado nem registrado.
+
+### Configuração
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um OAuth
+   Client ID do tipo **Web application**.
+2. Em **Authorized JavaScript origins**, cadastre exatamente a origem do
+   frontend, por exemplo `http://localhost:3000` e a origem HTTPS de produção.
+   Não coloque o redirect do Spotify nessa lista.
+3. Defina no `.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_LOGIN_ENABLED=true` e
+   `GOOGLE_DEFAULT_ACADEMIA_ID` com a academia usada pelo MVP. Opcionalmente,
+   defina `GOOGLE_ALLOWED_HOSTED_DOMAIN` para restringir contas Workspace.
+4. O e-mail verificado do Google precisa corresponder ao e-mail já cadastrado
+   no aluno dessa academia. O sistema não cria aluno automaticamente e não
+   escolhe uma academia silenciosamente; e-mails ausentes retornam acesso
+   negado e conflitos exigem seleção explícita.
+
+O RLS exige um tenant antes da consulta. Por isso este MVP faz a consulta
+somente na academia configurada em `GOOGLE_DEFAULT_ACADEMIA_ID`, usando uma
+sessão normal da API, nunca a role superusuária das migrations. Mantenha
+`GOOGLE_LOGIN_ENABLED=false` até configurar o Client ID, a origem autorizada e
+os cadastros de e-mail.
+
+O login Google não autentica o Spotify. **Spotify Connect permanece separado**:
+o aluno ainda precisa conectar sua conta Spotify (e Premium para reprodução
+completa) na Jukebox; os tokens Spotify continuam tendo seu próprio fluxo e
+armazenamento de sessão.
+
+## 5. Como o Spotify funciona
 
 A API usa Client Credentials para pesquisar faixas e playlists públicas e ler
 metadados. Para reprodução completa, o navegador faz OAuth Authorization Code
@@ -106,7 +139,7 @@ versão de produção, prefira sessão segura no backend/BFF e rotação/revoga�
 de tokens. Sem conexão OAuth, o embed existente é apenas prévia e não promete
 reprodução completa.
 
-## 5. Rotas principais
+## 6. Rotas principais
 
 ### Aluno
 

@@ -11,12 +11,81 @@ export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? API_DEFAULT).replace
 
 export type Perfil = "aluno" | "gestor" | "anunciante";
 
-// Enquanto não há login real (usuário e senha), cada perfil usa o token demo.
+export type GoogleConfig = {
+  enabled: boolean;
+  client_id: string;
+  hosted_domain: string;
+};
+
+export const APP_TOKEN_KEY = "treino-express-app-token";
+export const AUTH_EVENT = "treino-express-auth";
+
+// Tokens de painel continuam em memória; o token do aluno fica somente na aba.
 const tokens: Partial<Record<Perfil, string>> = {};
+let googleConfigPromise: Promise<GoogleConfig> | null = null;
+
+export function getAppToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(APP_TOKEN_KEY);
+}
+
+export function setAppToken(token: string): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(APP_TOKEN_KEY, token);
+  tokens.aluno = token;
+  window.dispatchEvent(new Event(AUTH_EVENT));
+}
+
+export function clearAppToken(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(APP_TOKEN_KEY);
+  delete tokens.aluno;
+  window.dispatchEvent(new Event(AUTH_EVENT));
+}
+
+export async function obterGoogleConfig(): Promise<GoogleConfig> {
+  if (!googleConfigPromise) {
+    googleConfigPromise = fetch(`${API_BASE}/v1/auth/google/config`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Configuração de login indisponível (${res.status})`);
+        return (await res.json()) as GoogleConfig;
+      })
+      .catch((error: unknown) => {
+        googleConfigPromise = null;
+        throw error;
+      });
+  }
+  return googleConfigPromise;
+}
+
+export function useGoogleLoginConfig(): {
+  config: GoogleConfig | null;
+  carregando: boolean;
+} {
+  const [config, setConfig] = useState<GoogleConfig | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  useEffect(() => {
+    let vivo = true;
+    obterGoogleConfig()
+      .then((data) => vivo && setConfig(data))
+      .catch(() => vivo && setConfig(null))
+      .finally(() => vivo && setCarregando(false));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  return { config, carregando };
+}
 
 async function obterToken(perfil: Perfil): Promise<string> {
-  const guardado = tokens[perfil];
+  const guardado = perfil === "aluno" ? getAppToken() : tokens[perfil];
   if (guardado) return guardado;
+  if (perfil === "aluno") {
+    const google = await obterGoogleConfig();
+    if (google.enabled) {
+      throw new ApiError("Faça login com Google para acessar o app do aluno.");
+    }
+  }
   const res = await fetch(`${API_BASE}/v1/auth/demo?perfil=${perfil}`, { method: "POST" });
   if (!res.ok) throw new Error(`Login indisponível (${res.status})`);
   const { access_token } = (await res.json()) as { access_token: string };
@@ -51,7 +120,8 @@ export async function api<T>(perfil: Perfil, path: string, init: RequestInit = {
       throw new ApiError("Não foi possível conectar à API. Verifique se o servidor está no ar.");
     }
     if (res.status === 401 && tentativa === 0) {
-      delete tokens[perfil];
+      if (perfil === "aluno") clearAppToken();
+      else delete tokens[perfil];
       continue;
     }
     if (!res.ok) {

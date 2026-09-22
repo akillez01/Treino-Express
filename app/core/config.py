@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     demo_anunciante_id: str = "55555555-5555-5555-5555-555555555555"
     demo_tela_id: str = "a1000000-0000-0000-0000-000000000001"
 
+    # Google Identity Services (login da conta Treino Express, não do Spotify).
+    google_client_id: str = ""
+    google_allowed_hosted_domain: str = ""
+    google_login_enabled: bool = False
+    # Como o RLS exige um tenant antes de consultar alunos, o MVP faz a busca
+    # somente nesta academia explicitamente configurada. Nunca usa a role de
+    # migrations para fazer uma busca global.
+    google_default_academia_id: str = ""
+
     # Endereço público da API (vai dentro do QR) e do frontend (destino do scan).
     public_api_url: str = "http://127.0.0.1:8000"
     public_web_url: str = "http://127.0.0.1:3000"

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { gerarTreino, type Treino } from "@/lib/api";
+import { gerarTreino, getAppToken, useGoogleLoginConfig, type Treino } from "@/lib/api";
 import AlunoTabs from "./_components/AlunoTabs";
+import GoogleLogin from "./_components/GoogleLogin";
 import Execucao from "./execucao";
 import s from "./aluno.module.css";
 
@@ -24,10 +25,19 @@ export default function Home() {
   const [treino, setTreino] = useState<Treino | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const { config: googleConfig, carregando: carregandoLogin } = useGoogleLoginConfig();
+  const [autenticado, setAutenticado] = useState(false);
   const atual = FOCOS.find((f) => f.id === foco)!;
   const data = new Date()
     .toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })
     .replace(".", "");
+
+  useEffect(() => {
+    const atualizar = () => setAutenticado(Boolean(getAppToken()));
+    atualizar();
+    window.addEventListener("treino-express-auth", atualizar);
+    return () => window.removeEventListener("treino-express-auth", atualizar);
+  }, []);
 
   async function gerar() {
     setErro(null);
@@ -63,7 +73,9 @@ export default function Home() {
           </div>
         </header>
 
-        <section className={s.card}>
+        {!carregandoLogin && <GoogleLogin />}
+
+        {!googleConfig?.enabled || autenticado ? <section className={s.card}>
           <div className={s.cardRow}>
             <label className={s.label} htmlFor="tempo">
               TEMPO DISPONÍVEL
@@ -87,9 +99,9 @@ export default function Home() {
             <span>15 min</span>
             <span>60 min</span>
           </div>
-        </section>
+        </section> : null}
 
-        <div className={s.grid} role="radiogroup" aria-label="Foco muscular">
+        {!googleConfig?.enabled || autenticado ? <div className={s.grid} role="radiogroup" aria-label="Foco muscular">
           {FOCOS.map((f) => (
             <button
               key={f.id}
@@ -106,18 +118,18 @@ export default function Home() {
               </span>
             </button>
           ))}
-        </div>
+        </div> : null}
 
-        <button className={s.cta} onClick={gerar} disabled={carregando}>
+        {!googleConfig?.enabled || autenticado ? <button className={s.cta} onClick={gerar} disabled={carregando}>
           {carregando ? "Gerando..." : "Gerar Treino →"}
-        </button>
+        </button> : null}
         {erro && <p className={s.summary}>{erro}</p>}
-        <Link href="/aluno/jukebox" className={s.jukeLink}>
+        {(!googleConfig?.enabled || autenticado) && <Link href="/aluno/jukebox" className={s.jukeLink}>
           ♪ Pedir música na jukebox
-        </Link>
-        <p className={s.summary}>
+        </Link>}
+        {(!googleConfig?.enabled || autenticado) && <p className={s.summary}>
           {minutos} min · {atual.nome} · {qtdExercicios(minutos)} exercícios
-        </p>
+        </p>}
       </div>
       <AlunoTabs />
     </main>
